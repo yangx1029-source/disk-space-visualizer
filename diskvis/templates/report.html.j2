@@ -1,0 +1,1761 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Disk Space Visualizer Report</title>
+  <script>
+    (() => {
+      const storageKey = 'diskvis-theme';
+      let savedTheme = null;
+      try {
+        savedTheme = localStorage.getItem(storageKey);
+      } catch (_error) {
+        savedTheme = null;
+      }
+      const systemTheme = window.matchMedia?.('(prefers-color-scheme: light)').matches
+        ? 'light'
+        : 'dark';
+      const initialTheme = ['dark', 'light'].includes(savedTheme) ? savedTheme : systemTheme;
+      document.documentElement.classList.add(`theme-${initialTheme}`);
+      document.documentElement.dataset.theme = initialTheme;
+    })();
+  </script>
+  {% if not offline %}
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  {% endif %}
+  <style>
+    :root {
+      --glass-bg: rgba(20, 27, 42, 0.58);
+      --glass-border: rgba(255, 255, 255, 0.18);
+      --glass-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+      --glass-blur: 26px;
+      --text-primary: #f6f8fc;
+      --text-secondary: #aeb8c9;
+      --accent-color: #5eead4;
+      --accent-warm: #fbbf77;
+      --accent-coral: #fb8f8f;
+      --accent-violet: #b8a5ff;
+      --page-bg: #080b13;
+      --page-bg-secondary: #101827;
+      --surface-soft: rgba(12, 18, 31, 0.46);
+      --surface-strong: rgba(16, 23, 38, 0.72);
+      --line-color: rgba(255, 255, 255, 0.12);
+      --table-head: rgba(255, 255, 255, 0.055);
+      --chart-text: #f6f8fc;
+      --chart-muted: #aeb8c9;
+      --chart-line: rgba(255, 255, 255, 0.1);
+      --reflection: rgba(255, 255, 255, 0.42);
+      --focus-ring: rgba(94, 234, 212, 0.42);
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .theme-dark {
+      color-scheme: dark;
+      --glass-bg: rgba(20, 27, 42, 0.58);
+      --glass-border: rgba(255, 255, 255, 0.18);
+      --glass-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+      --text-primary: #f6f8fc;
+      --text-secondary: #aeb8c9;
+      --accent-color: #5eead4;
+      --page-bg: #080b13;
+      --page-bg-secondary: #101827;
+      --surface-soft: rgba(12, 18, 31, 0.46);
+      --surface-strong: rgba(16, 23, 38, 0.72);
+      --line-color: rgba(255, 255, 255, 0.12);
+      --table-head: rgba(255, 255, 255, 0.055);
+      --chart-text: #f6f8fc;
+      --chart-muted: #aeb8c9;
+      --chart-line: rgba(255, 255, 255, 0.1);
+      --reflection: rgba(255, 255, 255, 0.42);
+      --focus-ring: rgba(94, 234, 212, 0.42);
+    }
+
+    .theme-light {
+      color-scheme: light;
+      --glass-bg: rgba(255, 255, 255, 0.62);
+      --glass-border: rgba(255, 255, 255, 0.92);
+      --glass-shadow: 0 22px 60px rgba(49, 68, 92, 0.16);
+      --text-primary: #162033;
+      --text-secondary: #5e6c80;
+      --accent-color: #087f78;
+      --page-bg: #edf5fa;
+      --page-bg-secondary: #e7edf8;
+      --surface-soft: rgba(255, 255, 255, 0.45);
+      --surface-strong: rgba(255, 255, 255, 0.7);
+      --line-color: rgba(35, 54, 78, 0.12);
+      --table-head: rgba(224, 233, 244, 0.68);
+      --chart-text: #162033;
+      --chart-muted: #5e6c80;
+      --chart-line: rgba(35, 54, 78, 0.12);
+      --reflection: rgba(255, 255, 255, 0.98);
+      --focus-ring: rgba(8, 127, 120, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-width: 320px;
+      max-width: 100%;
+      overflow-x: hidden;
+      background: var(--page-bg);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-height: 100vh;
+      max-width: 100%;
+      margin: 0;
+      overflow-x: hidden;
+      color: var(--text-primary);
+      background:
+        radial-gradient(ellipse at 8% 8%, rgba(69, 210, 196, 0.2), transparent 36%),
+        radial-gradient(ellipse at 88% 14%, rgba(251, 143, 143, 0.16), transparent 34%),
+        radial-gradient(ellipse at 72% 72%, rgba(184, 165, 255, 0.15), transparent 38%),
+        radial-gradient(ellipse at 18% 86%, rgba(251, 191, 119, 0.12), transparent 34%),
+        linear-gradient(145deg, var(--page-bg), var(--page-bg-secondary));
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      line-height: 1.5;
+      transition: background-color 220ms var(--ease-out), color 220ms var(--ease-out);
+    }
+
+    body::before,
+    body::after {
+      position: fixed;
+      inset: -24%;
+      z-index: -1;
+      content: "";
+      pointer-events: none;
+    }
+
+    body::before {
+      background:
+        radial-gradient(ellipse at 24% 28%, rgba(94, 234, 212, 0.17), transparent 29%),
+        radial-gradient(ellipse at 76% 24%, rgba(251, 143, 143, 0.14), transparent 28%),
+        radial-gradient(ellipse at 64% 76%, rgba(184, 165, 255, 0.14), transparent 31%);
+      filter: blur(54px) saturate(135%);
+      animation: ambient-shift 18s ease-in-out infinite alternate;
+    }
+
+    body::after {
+      background:
+        radial-gradient(ellipse at 42% 18%, rgba(255, 255, 255, 0.08), transparent 24%),
+        radial-gradient(ellipse at 18% 68%, rgba(67, 147, 255, 0.08), transparent 27%);
+      filter: blur(78px);
+      animation: ambient-drift 24s ease-in-out infinite alternate;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    a {
+      color: var(--accent-color);
+    }
+
+    h1,
+    h2,
+    p {
+      margin-top: 0;
+    }
+
+    h1,
+    h2 {
+      margin-bottom: 0;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      max-width: 760px;
+      font-size: clamp(32px, 5vw, 58px);
+      font-weight: 760;
+      line-height: 1.05;
+    }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 690;
+    }
+
+    .report-shell {
+      width: min(1220px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 14px 0 64px;
+    }
+
+    .topbar,
+    .card {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.24),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.045),
+        var(--glass-shadow);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+      backdrop-filter: blur(var(--glass-blur)) saturate(165%);
+    }
+
+    .topbar::before,
+    .card::before {
+      position: absolute;
+      inset: 0 0 auto;
+      z-index: -1;
+      height: 42%;
+      content: "";
+      pointer-events: none;
+      background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--reflection) 28%, transparent),
+        transparent
+      );
+      opacity: 0.5;
+    }
+
+    .topbar::after,
+    .card::after {
+      position: absolute;
+      inset: 1px;
+      z-index: -1;
+      content: "";
+      pointer-events: none;
+      border: 1px solid rgba(255, 255, 255, 0.055);
+      border-radius: inherit;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 12px;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: minmax(180px, auto) minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 18px;
+      min-height: 68px;
+      padding: 10px 12px 10px 16px;
+      border-radius: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      font-size: 15px;
+      font-weight: 720;
+      white-space: nowrap;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 11px;
+      color: #07151a;
+      background: linear-gradient(145deg, #9ff7e9, #5eead4 48%, #47b7df);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.72),
+        0 8px 22px rgba(47, 207, 190, 0.24);
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .version-tag {
+      padding: 3px 7px;
+      color: var(--text-secondary);
+      background: var(--surface-soft);
+      border: 1px solid var(--line-color);
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 720;
+    }
+
+    .nav-context {
+      min-width: 0;
+      text-align: center;
+    }
+
+    .nav-path,
+    .nav-time {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .nav-path {
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 630;
+    }
+
+    .nav-time {
+      margin-top: 2px;
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    .theme-toggle {
+      display: inline-flex;
+      min-width: 84px;
+      height: 44px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 13px;
+      cursor: pointer;
+      background: var(--surface-soft);
+      border: 1px solid var(--line-color);
+      border-radius: 15px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      transition:
+        transform 180ms var(--ease-out),
+        background-color 180ms var(--ease-out),
+        border-color 180ms var(--ease-out);
+    }
+
+    .theme-toggle:focus-visible {
+      outline: 3px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+
+    .theme-toggle:active {
+      transform: scale(0.97);
+    }
+
+    .theme-icon {
+      width: 18px;
+      font-size: 17px;
+      line-height: 1;
+      text-align: center;
+    }
+
+    .theme-label {
+      font-size: 12px;
+      font-weight: 690;
+    }
+
+    .report-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 24px;
+      padding: 64px 8px 32px;
+    }
+
+    .eyebrow {
+      margin-bottom: 12px;
+      color: var(--accent-color);
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .header-copy {
+      max-width: 720px;
+      margin: 16px 0 0;
+      color: var(--text-secondary);
+      font-size: 15px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      max-width: 320px;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 13px;
+      color: var(--accent-color);
+      background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent-color) 35%, transparent);
+      border-radius: 14px;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      flex: 0 0 7px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 14px currentColor;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .stats {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      margin-bottom: 20px;
+    }
+
+    .charts {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 20px;
+    }
+
+    .card {
+      border-radius: 24px;
+      padding: 20px;
+    }
+
+    .metric-card {
+      min-height: 132px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .metric-label {
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 620;
+    }
+
+    .metric-value {
+      margin-top: 18px;
+      overflow-wrap: anywhere;
+      font-size: clamp(20px, 2.2vw, 28px);
+      font-weight: 760;
+      line-height: 1.12;
+    }
+
+    .metric-value.status-value {
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    .metric-accent {
+      width: 28px;
+      height: 3px;
+      margin-top: 18px;
+      border-radius: 99px;
+      background: var(--metric-color, var(--accent-color));
+      box-shadow: 0 0 18px color-mix(in srgb, var(--metric-color, var(--accent-color)) 52%, transparent);
+    }
+
+    .section-card {
+      margin-top: 20px;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 14px;
+    }
+
+    .section-kicker {
+      margin: 4px 0 0;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .chart {
+      width: 100%;
+      height: 350px;
+      min-width: 0;
+    }
+
+    .treemap-chart {
+      height: 440px;
+    }
+
+    .treemap-selection {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 14px;
+      min-height: 54px;
+      margin-top: 14px;
+      padding: 10px 13px;
+      color: var(--text-secondary);
+      background: var(--surface-soft);
+      border: 1px solid var(--line-color);
+      border-radius: 15px;
+      font-size: 12px;
+    }
+
+    .treemap-selection strong {
+      display: block;
+      overflow: hidden;
+      color: var(--text-primary);
+      font-size: 13px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .selection-value {
+      color: var(--text-primary);
+      font-weight: 680;
+      white-space: nowrap;
+    }
+
+    .table-card {
+      padding-bottom: 18px;
+    }
+
+    .table-scroll {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      background: var(--surface-soft);
+      border: 1px solid var(--line-color);
+      border-radius: 16px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      width: 100%;
+      min-width: 620px;
+      border-collapse: collapse;
+      color: var(--text-primary);
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line-color);
+      overflow-wrap: anywhere;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--text-secondary);
+      background: var(--table-head);
+      font-size: 12px;
+      font-weight: 680;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .num {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .path-cell {
+      min-width: 340px;
+      overflow-wrap: normal;
+      white-space: nowrap;
+      word-break: normal;
+    }
+
+    .duplicate-table {
+      min-width: 980px;
+    }
+
+    .hash-cell {
+      min-width: 160px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      white-space: nowrap;
+    }
+
+    .hash-details summary {
+      color: var(--accent-color);
+      cursor: pointer;
+    }
+
+    .hash-details code {
+      display: block;
+      margin-top: 6px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .path-list {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .path-list li + li {
+      margin-top: 4px;
+    }
+
+    .recommendations {
+      display: grid;
+      gap: 10px;
+    }
+
+    .recommendation,
+    .empty-state {
+      padding: 12px 14px;
+      color: var(--text-secondary);
+      background: var(--surface-soft);
+      border: 1px solid var(--line-color);
+      border-left: 3px solid var(--accent-color);
+      border-radius: 14px;
+    }
+
+    .duplicate-summary {
+      margin-bottom: 14px;
+      color: var(--text-primary);
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(10px);
+      animation: reveal-up 280ms var(--ease-out) forwards;
+      animation-delay: calc(var(--order, 0) * 35ms);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .card {
+        transition:
+          transform 220ms var(--ease-out),
+          border-color 220ms var(--ease-out),
+          box-shadow 220ms var(--ease-out);
+      }
+
+      .card:hover {
+        transform: translateY(-3px);
+        border-color: color-mix(in srgb, var(--glass-border) 72%, var(--accent-color));
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.28),
+          0 30px 78px rgba(0, 0, 0, 0.28);
+      }
+
+      .theme-toggle:hover {
+        background: color-mix(in srgb, var(--surface-soft) 76%, var(--accent-color));
+        border-color: color-mix(in srgb, var(--line-color) 62%, var(--accent-color));
+      }
+    }
+
+    @media (max-width: 1040px) {
+      .stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .report-shell {
+        width: min(100% - 20px, 1220px);
+        padding-top: 10px;
+      }
+
+      .topbar {
+        top: 8px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        min-height: 60px;
+        border-radius: 20px;
+      }
+
+      .nav-context {
+        display: none;
+      }
+
+      .report-header {
+        grid-template-columns: 1fr;
+        gap: 18px;
+        padding: 44px 4px 24px;
+      }
+
+      h1 {
+        font-size: 36px;
+      }
+
+      .stats,
+      .charts {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        gap: 12px;
+      }
+
+      .metric-card {
+        min-height: 112px;
+      }
+
+      .card {
+        padding: 16px;
+        border-radius: 20px;
+      }
+
+      .chart {
+        height: 310px;
+      }
+
+      .treemap-chart {
+        height: 360px;
+      }
+
+      .treemap-selection {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+
+      .selection-count {
+        display: none;
+      }
+
+      th,
+      td {
+        padding: 10px;
+      }
+
+      .table-scroll table {
+        min-width: 620px;
+      }
+
+      .table-scroll .duplicate-table {
+        min-width: 980px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .report-shell {
+        width: calc(100% - 16px);
+      }
+
+      .brand {
+        font-size: 13px;
+      }
+
+      .brand-mark {
+        width: 32px;
+        height: 32px;
+        flex-basis: 32px;
+      }
+
+      .theme-toggle {
+        min-width: 76px;
+        height: 40px;
+        padding: 0 10px;
+      }
+
+      h1 {
+        font-size: 33px;
+      }
+
+      .header-copy {
+        font-size: 14px;
+      }
+
+      .section-heading {
+        gap: 10px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+
+      .reveal {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    @keyframes reveal-up {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes ambient-shift {
+      from {
+        opacity: 0.72;
+        transform: translate3d(-1.5%, -1%, 0) scale(1);
+      }
+      to {
+        opacity: 1;
+        transform: translate3d(2%, 1.5%, 0) scale(1.035);
+      }
+    }
+
+    @keyframes ambient-drift {
+      from {
+        opacity: 0.5;
+        transform: translate3d(1%, 0, 0);
+      }
+      to {
+        opacity: 0.82;
+        transform: translate3d(-1.5%, 2%, 0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="report-shell">
+    <nav class="topbar" aria-label="报告导航">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">DV</span>
+        <span>Disk Space Visualizer</span>
+        <span class="version-tag">v{{ app_version }}</span>
+      </div>
+      <div class="nav-context">
+        <span class="nav-path" title="{{ summary.root }}">{{ summary.root }}</span>
+        <span class="nav-time">扫描报告 · {{ generated_at }}</span>
+      </div>
+      <button
+        id="themeToggle"
+        class="theme-toggle"
+        type="button"
+        title="切换深色或浅色主题"
+        aria-label="切换深色或浅色主题"
+      >
+        <span id="themeIcon" class="theme-icon" aria-hidden="true">☀</span>
+        <span id="themeLabel" class="theme-label">Light</span>
+      </button>
+    </nav>
+
+    <header class="report-header reveal" style="--order: 0">
+      <div>
+        <p class="eyebrow">Storage intelligence</p>
+        <h1>磁盘空间分析报告</h1>
+        <p class="header-copy">
+          扫描路径：{{ summary.root }}<br>
+          生成时间：{{ generated_at }}
+        </p>
+      </div>
+      {% if offline %}
+      <div class="status-badge">
+        <span class="status-dot" aria-hidden="true"></span>
+        离线模式 · 内置 SVG 图表
+      </div>
+      {% else %}
+      <div class="status-badge">
+        <span class="status-dot" aria-hidden="true"></span>
+        ECharts 5.5.1 · SVG 自动降级
+      </div>
+      {% endif %}
+    </header>
+
+    <section class="grid stats" aria-label="扫描概览">
+      <article class="card metric-card reveal" style="--order: 1; --metric-color: var(--accent-color)">
+        <div class="metric-label">总大小</div>
+        <div>
+          <div class="metric-value">{{ summary.total_size_human }}</div>
+          <div class="metric-accent"></div>
+        </div>
+      </article>
+      <article class="card metric-card reveal" style="--order: 2; --metric-color: #68b8ff">
+        <div class="metric-label">文件数</div>
+        <div>
+          <div class="metric-value">{{ summary.total_files }}</div>
+          <div class="metric-accent"></div>
+        </div>
+      </article>
+      <article class="card metric-card reveal" style="--order: 3; --metric-color: var(--accent-warm)">
+        <div class="metric-label">文件夹数</div>
+        <div>
+          <div class="metric-value">{{ summary.total_folders }}</div>
+          <div class="metric-accent"></div>
+        </div>
+      </article>
+      <article class="card metric-card reveal" style="--order: 4; --metric-color: var(--accent-violet)">
+        <div class="metric-label">扫描耗时</div>
+        <div>
+          <div class="metric-value">{{ summary.scan_seconds_text }}</div>
+          <div class="metric-accent"></div>
+        </div>
+      </article>
+      <article class="card metric-card reveal" style="--order: 5; --metric-color: var(--accent-coral)">
+        <div class="metric-label">重复文件检测</div>
+        <div>
+          <div class="metric-value status-value">
+            {% if not duplicates_scanned %}
+            未执行重复文件检测
+            {% elif duplicate_group_count == 0 %}
+            未发现重复文件
+            {% else %}
+            发现 {{ duplicate_group_count }} 组，可释放 {{ duplicate_potential_saved_size_human }}
+            {% endif %}
+          </div>
+          <div class="metric-accent"></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="card section-card reveal" style="--order: 6">
+      <div class="section-heading">
+        <div>
+          <h2>目录空间 Treemap</h2>
+          <p class="section-kicker">面积代表一级目录占用，点击区块查看目录详情</p>
+        </div>
+      </div>
+      <div id="treemapChart" class="chart treemap-chart" aria-label="一级目录空间 Treemap"></div>
+      <div id="treemapSelection" class="treemap-selection" aria-live="polite">
+        <div>
+          <span>当前目录</span>
+          <strong id="selectionPath">点击图表中的目录区块</strong>
+        </div>
+        <span id="selectionCount" class="selection-count">—</span>
+        <span id="selectionSize" class="selection-value">—</span>
+      </div>
+    </section>
+
+    <section class="grid charts" aria-label="空间分析图表">
+      <article class="card reveal" style="--order: 7">
+        <div class="section-heading">
+          <div>
+            <h2>文件类型占用</h2>
+            <p class="section-kicker">按文件扩展名聚合</p>
+          </div>
+        </div>
+        <div id="typeChart" class="chart" aria-label="文件类型占用饼图"></div>
+      </article>
+      <article class="card reveal" style="--order: 8">
+        <div class="section-heading">
+          <div>
+            <h2>最大文件</h2>
+            <p class="section-kicker">按文件大小降序排列</p>
+          </div>
+        </div>
+        <div id="largestChart" class="chart" aria-label="最大文件横向柱状图"></div>
+      </article>
+      <article class="card reveal" style="--order: 9">
+        <div class="section-heading">
+          <div>
+            <h2>一级文件夹占用</h2>
+            <p class="section-kicker">根目录下的空间分布</p>
+          </div>
+        </div>
+        <div id="folderChart" class="chart" aria-label="一级文件夹占用柱状图"></div>
+      </article>
+      <article class="card reveal" style="--order: 10">
+        <div class="section-heading">
+          <div>
+            <h2>文件大小分布</h2>
+            <p class="section-kicker">不同体积区间的文件数量</p>
+          </div>
+        </div>
+        <div id="distributionChart" class="chart" aria-label="文件大小分布图"></div>
+      </article>
+    </section>
+
+    <section class="card table-card section-card reveal" style="--order: 11">
+      <div class="section-heading">
+        <h2>最大文件列表</h2>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>路径</th><th class="num">大小</th></tr>
+          </thead>
+          <tbody>
+          {% for file in largest_files %}
+            <tr><td class="path-cell">{{ file.path }}</td><td class="num">{{ file.size_human }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card table-card section-card reveal" style="--order: 12">
+      <div class="section-heading">
+        <h2>文件类型统计</h2>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>类型</th><th class="num">数量</th><th class="num">大小</th></tr>
+          </thead>
+          <tbody>
+          {% for stat in type_stats %}
+            <tr>
+              <td>{{ stat.suffix }}</td>
+              <td class="num">{{ stat.count }}</td>
+              <td class="num">{{ stat.total_size_human }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card table-card section-card reveal" style="--order: 13">
+      <div class="section-heading">
+        <h2>文件夹占用统计</h2>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>文件夹</th><th class="num">文件数</th><th class="num">大小</th></tr>
+          </thead>
+          <tbody>
+          {% for stat in folder_stats %}
+            <tr>
+              <td class="path-cell">{{ stat.path }}</td>
+              <td class="num">{{ stat.count }}</td>
+              <td class="num">{{ stat.total_size_human }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card table-card section-card reveal" style="--order: 14">
+      <div class="section-heading">
+        <h2>重复文件组</h2>
+      </div>
+      {% if not duplicates_scanned %}
+      <div class="empty-state">未执行重复文件检测</div>
+      {% elif duplicate_group_count == 0 %}
+      <div class="empty-state">未发现重复文件</div>
+      {% else %}
+      <div class="recommendation duplicate-summary">
+        发现 {{ duplicate_group_count }} 组重复文件，可释放 {{ duplicate_potential_saved_size_human }}
+      </div>
+      <div class="table-scroll">
+        <table class="duplicate-table">
+          <thead>
+            <tr>
+              <th>Hash</th>
+              <th class="num">文件数</th>
+              <th class="num">单文件大小</th>
+              <th class="num">理论可节省</th>
+              <th>文件</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for group in duplicates %}
+            <tr>
+              <td class="hash-cell">
+                <details class="hash-details">
+                  <summary title="{{ group.hash }}">{{ group.hash[:16] }}...</summary>
+                  <code>{{ group.hash }}</code>
+                </details>
+              </td>
+              <td class="num">{{ group.files | length }}</td>
+              <td class="num">{{ group.size_human }}</td>
+              <td class="num">{{ group.potential_saved_size_human }}</td>
+              <td>
+                <ul class="path-list">
+                {% for path in group.files %}
+                  <li class="path-cell">{{ path }}</li>
+                {% endfor %}
+                </ul>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="card section-card reveal" style="--order: 15">
+      <div class="section-heading">
+        <h2>清理建议</h2>
+      </div>
+      <div class="recommendations">
+      {% for item in recommendations %}
+        <div class="recommendation">{{ item }}</div>
+      {% else %}
+        <div class="empty-state">当前没有需要特别提示的清理建议。</div>
+      {% endfor %}
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const typeStats = {{ type_chart_json | safe }};
+    const largestFiles = {{ largest_chart_json | safe }};
+    const folderStats = {{ folder_chart_json | safe }};
+    const distribution = {{ distribution_chart_json | safe }};
+    const themeStorageKey = 'diskvis-theme';
+    const chartElements = [
+      document.getElementById('treemapChart'),
+      document.getElementById('typeChart'),
+      document.getElementById('largestChart'),
+      document.getElementById('folderChart'),
+      document.getElementById('distributionChart')
+    ];
+
+    const formatBytes = value => {
+      const number = Number(value) || 0;
+      if (number < 1024) return `${number} B`;
+      const units = ['KB', 'MB', 'GB', 'TB', 'PB'];
+      let index = -1;
+      let amount = number;
+      do {
+        amount /= 1024;
+        index += 1;
+      } while (amount >= 1024 && index < units.length - 1);
+      return `${amount.toFixed(2)} ${units[index]}`;
+    };
+
+    const escapeHtml = value => String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+
+    const folderLabel = path => {
+      const value = String(path);
+      if (value === '[root files]') return '[root files]';
+      return value.split(/[\\/]/).filter(Boolean).pop() || value;
+    };
+
+    const treemapData = folderStats.map(item => ({
+      name: folderLabel(item.path),
+      path: String(item.path),
+      value: Number(item.total_size) || 0,
+      count: Number(item.count) || 0
+    }));
+
+    window.__diskvisReport = Object.freeze({
+      treemapData: treemapData.map(item => ({ ...item })),
+      echartsVersion: '5.5.1'
+    });
+
+    function themeTokens() {
+      const styles = getComputedStyle(document.documentElement);
+      return {
+        text: styles.getPropertyValue('--chart-text').trim(),
+        muted: styles.getPropertyValue('--chart-muted').trim(),
+        line: styles.getPropertyValue('--chart-line').trim(),
+        accent: styles.getPropertyValue('--accent-color').trim(),
+        surface: styles.getPropertyValue('--surface-strong').trim(),
+        border: styles.getPropertyValue('--glass-border').trim()
+      };
+    }
+
+    function chartPalette() {
+      return ['#5eead4', '#68b8ff', '#fbbf77', '#fb8f8f', '#b8a5ff', '#72d89c', '#e48ad8'];
+    }
+
+    function updateTreemapSelection(item) {
+      if (!item) return;
+      document.getElementById('selectionPath').textContent = item.path;
+      document.getElementById('selectionCount').textContent = `${item.count} 个文件`;
+      document.getElementById('selectionSize').textContent = formatBytes(item.value);
+    }
+
+    function currentTheme() {
+      return document.documentElement.classList.contains('theme-light') ? 'light' : 'dark';
+    }
+
+    function updateThemeButton() {
+      const nextTheme = currentTheme() === 'dark' ? 'light' : 'dark';
+      document.getElementById('themeIcon').textContent = nextTheme === 'light' ? '☀' : '☾';
+      document.getElementById('themeLabel').textContent = nextTheme === 'light' ? 'Light' : 'Dark';
+      document.getElementById('themeToggle').setAttribute(
+        'aria-label',
+        `切换到${nextTheme === 'light' ? '浅色' : '深色'}主题`
+      );
+    }
+
+    function setTheme(theme, persist = true) {
+      const safeTheme = theme === 'light' ? 'light' : 'dark';
+      document.documentElement.classList.remove('theme-dark', 'theme-light');
+      document.documentElement.classList.add(`theme-${safeTheme}`);
+      document.documentElement.dataset.theme = safeTheme;
+      if (persist) {
+        try {
+          localStorage.setItem(themeStorageKey, safeTheme);
+        } catch (_error) {
+          // The report remains usable when storage is unavailable on a local file URL.
+        }
+      }
+      updateThemeButton();
+      renderCharts();
+    }
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+    });
+
+    const systemThemeQuery = window.matchMedia?.('(prefers-color-scheme: light)');
+    systemThemeQuery?.addEventListener?.('change', event => {
+      let savedTheme = null;
+      try {
+        savedTheme = localStorage.getItem(themeStorageKey);
+      } catch (_error) {
+        savedTheme = null;
+      }
+      if (!['dark', 'light'].includes(savedTheme)) {
+        setTheme(event.matches ? 'light' : 'dark', false);
+      }
+    });
+
+    const svgNamespace = 'http://www.w3.org/2000/svg';
+
+    function createSvg(width, height, label) {
+      const svg = document.createElementNS(svgNamespace, 'svg');
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      svg.setAttribute('role', 'img');
+      svg.setAttribute('aria-label', label);
+      svg.setAttribute('width', '100%');
+      svg.setAttribute('height', '100%');
+      svg.style.fontFamily = 'Inter, system-ui, sans-serif';
+      return svg;
+    }
+
+    function addSvgText(svg, text, x, y, options = {}) {
+      const tokens = themeTokens();
+      const node = document.createElementNS(svgNamespace, 'text');
+      node.textContent = text;
+      node.setAttribute('x', x);
+      node.setAttribute('y', y);
+      node.setAttribute('fill', options.fill || tokens.text);
+      node.setAttribute('font-size', options.size || '13');
+      node.setAttribute('font-weight', options.weight || '500');
+      node.setAttribute('text-anchor', options.anchor || 'start');
+      if (options.pointerEvents === false) {
+        node.setAttribute('pointer-events', 'none');
+      }
+      svg.appendChild(node);
+      return node;
+    }
+
+    function renderEmptyChart(element, label = '暂无可展示数据') {
+      const tokens = themeTokens();
+      element.replaceChildren();
+      const svg = createSvg(760, 320, label);
+      addSvgText(svg, label, 380, 160, {
+        anchor: 'middle',
+        fill: tokens.muted,
+        size: '15'
+      });
+      element.appendChild(svg);
+    }
+
+    function layoutTreemap(items, x, y, width, height, depth = 0) {
+      if (!items.length) return [];
+      if (items.length === 1) {
+        return [{ ...items[0], x, y, width, height }];
+      }
+      const total = items.reduce((sum, item) => sum + Math.max(item.value, 0), 0);
+      if (total <= 0) return [];
+      let splitIndex = 1;
+      let accumulated = Math.max(items[0].value, 0);
+      for (let index = 1; index < items.length; index += 1) {
+        if (Math.abs(total / 2 - accumulated) <= Math.abs(
+          total / 2 - (accumulated + Math.max(items[index].value, 0))
+        )) {
+          break;
+        }
+        accumulated += Math.max(items[index].value, 0);
+        splitIndex = index + 1;
+      }
+      const first = items.slice(0, splitIndex);
+      const second = items.slice(splitIndex);
+      const firstRatio = accumulated / total;
+      const splitVertically = width >= height;
+      if (splitVertically) {
+        const firstWidth = width * firstRatio;
+        return [
+          ...layoutTreemap(first, x, y, firstWidth, height, depth + 1),
+          ...layoutTreemap(second, x + firstWidth, y, width - firstWidth, height, depth + 1)
+        ];
+      }
+      const firstHeight = height * firstRatio;
+      return [
+        ...layoutTreemap(first, x, y, width, firstHeight, depth + 1),
+        ...layoutTreemap(second, x, y + firstHeight, width, height - firstHeight, depth + 1)
+      ];
+    }
+
+    function renderFallbackTreemap(element, items) {
+      if (!items.length || items.every(item => item.value <= 0)) {
+        renderEmptyChart(element, '暂无目录占用数据');
+        return;
+      }
+      const tokens = themeTokens();
+      const colors = chartPalette();
+      const width = 900;
+      const height = 420;
+      const padding = 5;
+      const layouts = layoutTreemap(
+        [...items].sort((left, right) => right.value - left.value),
+        0,
+        0,
+        width,
+        height
+      );
+      const svg = createSvg(width, height, '一级目录空间 Treemap');
+      layouts.forEach((item, index) => {
+        const group = document.createElementNS(svgNamespace, 'g');
+        const x = item.x + padding / 2;
+        const y = item.y + padding / 2;
+        const itemWidth = Math.max(0, item.width - padding);
+        const itemHeight = Math.max(0, item.height - padding);
+        group.setAttribute('role', 'button');
+        group.setAttribute('tabindex', '0');
+        group.setAttribute('aria-label', `${item.path}，${formatBytes(item.value)}`);
+        group.style.cursor = 'pointer';
+
+        const rectangle = document.createElementNS(svgNamespace, 'rect');
+        rectangle.setAttribute('x', x);
+        rectangle.setAttribute('y', y);
+        rectangle.setAttribute('width', itemWidth);
+        rectangle.setAttribute('height', itemHeight);
+        rectangle.setAttribute('rx', Math.min(14, itemWidth / 7, itemHeight / 7));
+        rectangle.setAttribute('fill', colors[index % colors.length]);
+        rectangle.setAttribute('fill-opacity', currentTheme() === 'dark' ? '0.72' : '0.82');
+        rectangle.setAttribute('stroke', tokens.border);
+        rectangle.setAttribute('stroke-width', '1.5');
+        group.appendChild(rectangle);
+
+        const title = document.createElementNS(svgNamespace, 'title');
+        title.textContent = `${item.path}\n${formatBytes(item.value)} · ${item.count} 个文件`;
+        group.appendChild(title);
+
+        if (itemWidth > 92 && itemHeight > 54) {
+          const label = document.createElementNS(svgNamespace, 'text');
+          label.textContent = item.name.length > 24 ? `${item.name.slice(0, 21)}...` : item.name;
+          label.setAttribute('x', x + 14);
+          label.setAttribute('y', y + 25);
+          label.setAttribute('fill', '#07151a');
+          label.setAttribute('font-size', itemWidth > 180 ? '15' : '12');
+          label.setAttribute('font-weight', '760');
+          label.setAttribute('pointer-events', 'none');
+          group.appendChild(label);
+
+          if (itemHeight > 82) {
+            const valueLabel = document.createElementNS(svgNamespace, 'text');
+            valueLabel.textContent = formatBytes(item.value);
+            valueLabel.setAttribute('x', x + 14);
+            valueLabel.setAttribute('y', y + 46);
+            valueLabel.setAttribute('fill', 'rgba(7, 21, 26, 0.74)');
+            valueLabel.setAttribute('font-size', '11');
+            valueLabel.setAttribute('font-weight', '650');
+            valueLabel.setAttribute('pointer-events', 'none');
+            group.appendChild(valueLabel);
+          }
+        }
+
+        const selectItem = () => updateTreemapSelection(item);
+        group.addEventListener('click', selectItem);
+        group.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            selectItem();
+          }
+        });
+        svg.appendChild(group);
+      });
+      element.replaceChildren(svg);
+    }
+
+    function renderFallbackPieChart(element, items) {
+      if (!items.length || items.every(item => item.total_size <= 0)) {
+        renderEmptyChart(element);
+        return;
+      }
+      const tokens = themeTokens();
+      const colors = chartPalette();
+      const svg = createSvg(760, 320, '文件类型占用饼图');
+      const total = items.reduce((sum, item) => sum + item.total_size, 0);
+      const centerX = 190;
+      const centerY = 145;
+      const radius = 88;
+      const circumference = 2 * Math.PI * radius;
+      let offset = 0;
+      items.slice(0, 8).forEach((item, index) => {
+        const segment = circumference * item.total_size / total;
+        const circle = document.createElementNS(svgNamespace, 'circle');
+        circle.setAttribute('cx', centerX);
+        circle.setAttribute('cy', centerY);
+        circle.setAttribute('r', radius);
+        circle.setAttribute('fill', 'none');
+        circle.setAttribute('stroke', colors[index % colors.length]);
+        circle.setAttribute('stroke-width', '40');
+        circle.setAttribute('stroke-dasharray', `${segment} ${circumference - segment}`);
+        circle.setAttribute('stroke-dashoffset', `${-offset}`);
+        circle.setAttribute('transform', `rotate(-90 ${centerX} ${centerY})`);
+        const title = document.createElementNS(svgNamespace, 'title');
+        title.textContent = `${item.suffix}: ${formatBytes(item.total_size)}`;
+        circle.appendChild(title);
+        svg.appendChild(circle);
+        offset += segment;
+      });
+      addSvgText(svg, '文件类型', centerX, centerY + 5, {
+        anchor: 'middle',
+        size: '15',
+        weight: '700'
+      });
+      items.slice(0, 8).forEach((item, index) => {
+        const y = 40 + index * 31;
+        const marker = document.createElementNS(svgNamespace, 'rect');
+        marker.setAttribute('x', 390);
+        marker.setAttribute('y', y - 11);
+        marker.setAttribute('width', 12);
+        marker.setAttribute('height', 12);
+        marker.setAttribute('rx', 4);
+        marker.setAttribute('fill', colors[index % colors.length]);
+        svg.appendChild(marker);
+        addSvgText(svg, `${item.suffix}  ${formatBytes(item.total_size)}`, 412, y, {
+          fill: tokens.text
+        });
+      });
+      element.replaceChildren(svg);
+    }
+
+    function renderFallbackBarChart(element, items, labelKey, valueKey, color, label) {
+      if (!items.length) {
+        renderEmptyChart(element);
+        return;
+      }
+      const tokens = themeTokens();
+      const rows = items.slice(0, 10);
+      const width = 760;
+      const rowHeight = 30;
+      const height = Math.max(240, rows.length * rowHeight + 45);
+      const left = 245;
+      const barWidth = width - left - 86;
+      const maxValue = Math.max(...rows.map(item => item[valueKey]), 1);
+      const svg = createSvg(width, height, label);
+      rows.forEach((item, index) => {
+        const y = 28 + index * rowHeight;
+        const rawLabel = String(item[labelKey]);
+        const shortLabel = rawLabel === '[root files]' ? rawLabel : folderLabel(rawLabel);
+        const value = item[valueKey];
+        addSvgText(
+          svg,
+          shortLabel.length > 30 ? `${shortLabel.slice(0, 27)}...` : shortLabel,
+          left - 12,
+          y + 5,
+          { anchor: 'end', fill: tokens.muted }
+        );
+        const bar = document.createElementNS(svgNamespace, 'rect');
+        bar.setAttribute('x', left);
+        bar.setAttribute('y', y - 10);
+        bar.setAttribute('width', Math.max(2, barWidth * value / maxValue));
+        bar.setAttribute('height', 18);
+        bar.setAttribute('rx', 6);
+        bar.setAttribute('fill', color);
+        const title = document.createElementNS(svgNamespace, 'title');
+        title.textContent = `${rawLabel}: ${formatBytes(value)}`;
+        bar.appendChild(title);
+        svg.appendChild(bar);
+        addSvgText(svg, formatBytes(value), left + barWidth + 8, y + 5, {
+          fill: tokens.text,
+          size: '12'
+        });
+      });
+      element.replaceChildren(svg);
+    }
+
+    function renderFallbackDistribution(element) {
+      const tokens = themeTokens();
+      const items = Object.entries(distribution).map(([label, value]) => ({ label, value }));
+      if (!items.length) {
+        renderEmptyChart(element);
+        return;
+      }
+      const width = 760;
+      const rowHeight = 38;
+      const height = Math.max(240, items.length * rowHeight + 45);
+      const left = 210;
+      const barWidth = width - left - 70;
+      const maxValue = Math.max(...items.map(item => item.value), 1);
+      const svg = createSvg(width, height, '文件大小分布图');
+      items.forEach((item, index) => {
+        const y = 30 + index * rowHeight;
+        addSvgText(svg, item.label, left - 12, y + 5, {
+          anchor: 'end',
+          fill: tokens.muted
+        });
+        const bar = document.createElementNS(svgNamespace, 'rect');
+        bar.setAttribute('x', left);
+        bar.setAttribute('y', y - 11);
+        bar.setAttribute('width', Math.max(2, barWidth * item.value / maxValue));
+        bar.setAttribute('height', 20);
+        bar.setAttribute('rx', 7);
+        bar.setAttribute('fill', '#b8a5ff');
+        svg.appendChild(bar);
+        addSvgText(svg, String(item.value), left + barWidth + 8, y + 5, {
+          fill: tokens.text,
+          size: '12'
+        });
+      });
+      element.replaceChildren(svg);
+    }
+
+    function renderFallbackCharts() {
+      renderFallbackTreemap(document.getElementById('treemapChart'), treemapData);
+      renderFallbackPieChart(document.getElementById('typeChart'), typeStats);
+      renderFallbackBarChart(
+        document.getElementById('largestChart'),
+        largestFiles,
+        'path',
+        'size',
+        '#5eead4',
+        '最大文件横向柱状图'
+      );
+      renderFallbackBarChart(
+        document.getElementById('folderChart'),
+        folderStats,
+        'path',
+        'total_size',
+        '#fbbf77',
+        '一级文件夹占用柱状图'
+      );
+      renderFallbackDistribution(document.getElementById('distributionChart'));
+    }
+
+    function tooltipBox(title, value, detail = '') {
+      const detailLine = detail
+        ? `<div style="margin-top:4px;opacity:.72">${escapeHtml(detail)}</div>`
+        : '';
+      return `
+        <div style="min-width:150px">
+          <div style="font-weight:700">${escapeHtml(title)}</div>
+          <div style="margin-top:5px">${escapeHtml(value)}</div>
+          ${detailLine}
+        </div>
+      `;
+    }
+
+    function disposeECharts() {
+      if (!window.echarts) return;
+      chartElements.forEach(element => {
+        const instance = window.echarts.getInstanceByDom(element);
+        if (instance) instance.dispose();
+      });
+    }
+
+    function renderECharts() {
+      const charting = window.echarts;
+      const tokens = themeTokens();
+      const colors = chartPalette();
+      const tooltip = {
+        confine: true,
+        borderWidth: 1,
+        borderColor: tokens.border,
+        backgroundColor: tokens.surface,
+        textStyle: { color: tokens.text, fontSize: 12 },
+        extraCssText: 'backdrop-filter:blur(18px) saturate(150%);border-radius:14px;box-shadow:0 18px 44px rgba(0,0,0,.22);'
+      };
+      const grid = { left: 124, right: 78, top: 16, bottom: 36, containLabel: false };
+
+      const treemap = charting.init(document.getElementById('treemapChart'));
+      treemap.setOption({
+        backgroundColor: 'transparent',
+        color: colors,
+        tooltip: {
+          ...tooltip,
+          trigger: 'item',
+          formatter: params => tooltipBox(
+            params.data.path,
+            formatBytes(params.data.value),
+            `${params.data.count} 个文件`
+          )
+        },
+        series: [{
+          type: 'treemap',
+          roam: false,
+          nodeClick: false,
+          breadcrumb: { show: false },
+          visibleMin: 1,
+          squareRatio: 1.2,
+          data: treemapData,
+          label: {
+            show: true,
+            color: '#07151a',
+            fontWeight: 750,
+            formatter: params => `${params.name}\n${formatBytes(params.value)}`
+          },
+          upperLabel: { show: false },
+          itemStyle: {
+            borderColor: tokens.border,
+            borderWidth: 4,
+            gapWidth: 4,
+            borderRadius: 12
+          },
+          levels: [{
+            color: colors,
+            colorSaturation: currentTheme() === 'dark' ? [0.44, 0.72] : [0.34, 0.62],
+            itemStyle: {
+              borderColor: 'transparent',
+              borderWidth: 4,
+              gapWidth: 4
+            }
+          }]
+        }]
+      });
+      treemap.on('click', params => updateTreemapSelection(params.data));
+
+      charting.init(document.getElementById('typeChart')).setOption({
+        backgroundColor: 'transparent',
+        color: colors,
+        tooltip: {
+          ...tooltip,
+          trigger: 'item',
+          formatter: params => tooltipBox(params.name, formatBytes(params.value))
+        },
+        legend: {
+          bottom: 0,
+          textStyle: { color: tokens.muted },
+          pageTextStyle: { color: tokens.muted }
+        },
+        series: [{
+          type: 'pie',
+          radius: ['45%', '70%'],
+          center: ['50%', '43%'],
+          itemStyle: {
+            borderColor: currentTheme() === 'dark' ? '#141b2a' : '#eef4f9',
+            borderWidth: 3,
+            borderRadius: 7
+          },
+          data: typeStats.map(item => ({
+            name: item.suffix,
+            value: item.total_size
+          })),
+          label: { color: tokens.text }
+        }]
+      });
+
+      charting.init(document.getElementById('largestChart')).setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          ...tooltip,
+          trigger: 'axis',
+          formatter: params => {
+            const item = largestFiles[largestFiles.length - 1 - params[0].dataIndex];
+            return tooltipBox(item.path, formatBytes(item.size));
+          }
+        },
+        grid,
+        xAxis: {
+          type: 'value',
+          axisLabel: { color: tokens.muted, formatter: formatBytes },
+          axisLine: { lineStyle: { color: tokens.line } },
+          splitLine: { lineStyle: { color: tokens.line } }
+        },
+        yAxis: {
+          type: 'category',
+          data: largestFiles.map(item => folderLabel(item.path)).reverse(),
+          axisLabel: { color: tokens.muted, width: 112, overflow: 'truncate' },
+          axisLine: { lineStyle: { color: tokens.line } },
+          axisTick: { show: false }
+        },
+        series: [{
+          type: 'bar',
+          data: largestFiles.map(item => item.size).reverse(),
+          itemStyle: { color: '#5eead4', borderRadius: [0, 7, 7, 0] },
+          barMaxWidth: 20
+        }]
+      });
+
+      charting.init(document.getElementById('folderChart')).setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          ...tooltip,
+          trigger: 'axis',
+          formatter: params => {
+            const item = folderStats[folderStats.length - 1 - params[0].dataIndex];
+            return tooltipBox(item.path, formatBytes(item.total_size), `${item.count} 个文件`);
+          }
+        },
+        grid,
+        xAxis: {
+          type: 'value',
+          axisLabel: { color: tokens.muted, formatter: formatBytes },
+          axisLine: { lineStyle: { color: tokens.line } },
+          splitLine: { lineStyle: { color: tokens.line } }
+        },
+        yAxis: {
+          type: 'category',
+          data: folderStats.map(item => folderLabel(item.path)).reverse(),
+          axisLabel: { color: tokens.muted, width: 112, overflow: 'truncate' },
+          axisLine: { lineStyle: { color: tokens.line } },
+          axisTick: { show: false }
+        },
+        series: [{
+          type: 'bar',
+          data: folderStats.map(item => item.total_size).reverse(),
+          itemStyle: { color: '#fbbf77', borderRadius: [0, 7, 7, 0] },
+          barMaxWidth: 20
+        }]
+      });
+
+      const distributionEntries = Object.entries(distribution);
+      charting.init(document.getElementById('distributionChart')).setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          ...tooltip,
+          trigger: 'axis',
+          formatter: params => tooltipBox(params[0].axisValue, `${params[0].value} 个文件`)
+        },
+        grid: { left: 50, right: 24, top: 16, bottom: 70 },
+        xAxis: {
+          type: 'category',
+          data: distributionEntries.map(([label]) => label),
+          axisLabel: { color: tokens.muted, rotate: 18 },
+          axisLine: { lineStyle: { color: tokens.line } },
+          axisTick: { show: false }
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: { color: tokens.muted },
+          axisLine: { lineStyle: { color: tokens.line } },
+          splitLine: { lineStyle: { color: tokens.line } }
+        },
+        series: [{
+          type: 'bar',
+          data: distributionEntries.map(([, value]) => value),
+          itemStyle: { color: '#b8a5ff', borderRadius: [7, 7, 0, 0] },
+          barMaxWidth: 38
+        }]
+      });
+    }
+
+    function renderCharts() {
+      disposeECharts();
+      if (window.echarts) {
+        renderECharts();
+      } else {
+        renderFallbackCharts();
+      }
+    }
+
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        if (!window.echarts) return;
+        chartElements.forEach(element => {
+          window.echarts.getInstanceByDom(element)?.resize();
+        });
+      }, 100);
+    });
+
+    if (treemapData.length) {
+      updateTreemapSelection(treemapData[0]);
+    }
+    updateThemeButton();
+    renderCharts();
+  </script>
+</body>
+</html>

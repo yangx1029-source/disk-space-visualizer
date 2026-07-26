@@ -1,0 +1,70 @@
+{
+  "metadata": {
+    "version": "0.6.0",
+    "timestamp": "2026-07-19T10:30:00+08:00",
+    "root_path": "demo/Downloads"
+  },
+  "summary": {
+    "total_size": 5368709120,
+    "file_count": 200,
+    "folder_count": 20
+  },
+  "folders": [
+    {
+      "name": "video",
+      "path": "demo/Downloads/video",
+      "relative_path": "video",
+      "file_count": 14,
+      "total_size": 2147483648
+    },
+    {
+      "name": "images",
+      "path": "demo/Downloads/images",
+      "relative_path": "images",
+      "file_count": 38,
+      "total_size": 1073741824
+    },
+    {
+      "name": "archives",
+      "path": "demo/Downloads/archives",
+      "relative_path": "archives",
+      "file_count": 31,
+      "total_size": 1610612736
+    },
+    {
+      "name": "projects",
+      "path": "demo/Downloads/projects",
+      "relative_path": "projects",
+      "file_count": 52,
+      "total_size": 536870912
+    }
+  ],
+  "files": [
+    {
+      "path": "demo/Downloads/video/launch-film.mp4",
+      "relative_path": "video/launch-film.mp4",
+      "size": 1610612736,
+      "suffix": ".mp4",
+      "modified_time": 0
+    },
+    {
+      "path": "demo/Downloads/archives/catalog.zip",
+      "relative_path": "archives/catalog.zip",
+      "size": 1073741824,
+      "suffix": ".zip",
+      "modified_time": 0
+    },
+    {
+      "path": "demo/Downloads/archives/legacy-backup.7z",
+      "relative_path": "archives/legacy-backup.7z",
+      "size": 536870912,
+      "suffix": ".7z",
+      "modified_time": 0
+    }
+  ],
+  "duplicates": {
+    "scanned": true,
+    "group_count": 2,
+    "potential_saved_size": 268435456
+  }
+}

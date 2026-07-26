@@ -1,0 +1,117 @@
+{
+  "generated_at": "2026-07-26 10:30:00",
+  "summary": {
+    "root": "demo/Downloads",
+    "total_size": 6969675472,
+    "total_files": 248,
+    "total_folders": 23,
+    "scan_seconds": 2.87,
+    "total_size_human": "6.49 GB",
+    "scan_seconds_text": "2.87s"
+  },
+  "largest_files": [
+    {
+      "path": "demo/Downloads/video/launch-film.mp4",
+      "size": 1610612736,
+      "suffix": ".mp4",
+      "modified_time": 0,
+      "size_human": "1.50 GB"
+    },
+    {
+      "path": "demo/Downloads/video/raw-footage.mov",
+      "size": 1288490188,
+      "suffix": ".mov",
+      "modified_time": 0,
+      "size_human": "1.20 GB"
+    },
+    {
+      "path": "demo/Downloads/images/ubuntu.iso",
+      "size": 1073741824,
+      "suffix": ".iso",
+      "modified_time": 0,
+      "size_human": "1.00 GB"
+    },
+    {
+      "path": "demo/Downloads/archives/catalog.zip",
+      "size": 734003200,
+      "suffix": ".zip",
+      "modified_time": 0,
+      "size_human": "700.00 MB"
+    },
+    {
+      "path": "demo/Downloads/projects/disk-space-visualizer.tar.gz",
+      "size": 524288000,
+      "suffix": ".gz",
+      "modified_time": 0,
+      "size_human": "500.00 MB"
+    },
+    {
+      "path": "demo/Downloads/backups/photos-backup.7z",
+      "size": 314572800,
+      "suffix": ".7z",
+      "modified_time": 0,
+      "size_human": "300.00 MB"
+    },
+    {
+      "path": "demo/Downloads/data/analytics.parquet",
+      "size": 209715200,
+      "suffix": ".parquet",
+      "modified_time": 0,
+      "size_human": "200.00 MB"
+    },
+    {
+      "path": "demo/Downloads/design/brand-assets.psd",
+      "size": 157286400,
+      "suffix": ".psd",
+      "modified_time": 0,
+      "size_human": "150.00 MB"
+    }
+  ],
+  "type_stats": [
+    {"suffix": ".mp4", "count": 12, "total_size": 2147483648, "total_size_human": "2.00 GB"},
+    {"suffix": ".mov", "count": 8, "total_size": 1288490188, "total_size_human": "1.20 GB"},
+    {"suffix": ".iso", "count": 2, "total_size": 1073741824, "total_size_human": "1.00 GB"},
+    {"suffix": ".zip", "count": 18, "total_size": 734003200, "total_size_human": "700.00 MB"},
+    {"suffix": ".7z", "count": 6, "total_size": 314572800, "total_size_human": "300.00 MB"},
+    {"suffix": ".pdf", "count": 34, "total_size": 188743680, "total_size_human": "180.00 MB"},
+    {"suffix": "[no extension]", "count": 168, "total_size": 1222640132, "total_size_human": "1.14 GB"}
+  ],
+  "folder_stats": [
+    {"path": "demo/Downloads/video", "count": 20, "total_size": 3435973836, "total_size_human": "3.20 GB"},
+    {"path": "demo/Downloads/images", "count": 42, "total_size": 1195376640, "total_size_human": "1.11 GB"},
+    {"path": "demo/Downloads/archives", "count": 24, "total_size": 1048576000, "total_size_human": "1000.00 MB"},
+    {"path": "demo/Downloads/projects", "count": 67, "total_size": 786432000, "total_size_human": "750.00 MB"},
+    {"path": "[root files]", "count": 95, "total_size": 503316996, "total_size_human": "480.00 MB"}
+  ],
+  "size_distribution": {
+    "< 1 MB": 132,
+    "1 MB - 10 MB": 61,
+    "10 MB - 100 MB": 31,
+    "100 MB - 1 GB": 20,
+    ">= 1 GB": 4
+  },
+  "duplicates": [
+    {
+      "size": 268435456,
+      "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "files": [
+        "demo/Downloads/video/launch-film-copy.mp4",
+        "demo/Downloads/backups/launch-film-copy.mp4",
+        "demo/Downloads/archive/launch-film-copy.mp4"
+      ],
+      "size_human": "256.00 MB",
+      "potential_saved_size": 536870912,
+      "potential_saved_size_human": "512.00 MB"
+    }
+  ],
+  "duplicates_scanned": true,
+  "duplicate_group_count": 1,
+  "duplicate_potential_saved_size": 536870912,
+  "duplicate_potential_saved_size_human": "512.00 MB",
+  "recommendations": [
+    "检测到重复文件理论可节省 512.00 MB，建议人工确认后再处理。",
+    "存在超过 1GB 的大文件，建议检查是否为过期安装包、导出文件或临时文件。",
+    "压缩包占用 1000.00 MB，建议清理重复下载或旧备份。",
+    "视频文件占比较高，当前占用 3.20 GB，建议归档或迁移。"
+  ]
+}

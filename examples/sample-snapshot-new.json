@@ -1,0 +1,77 @@
+{
+  "metadata": {
+    "version": "0.6.0",
+    "timestamp": "2026-07-26T10:30:00+08:00",
+    "root_path": "demo/Downloads"
+  },
+  "summary": {
+    "total_size": 6710886400,
+    "file_count": 248,
+    "folder_count": 23
+  },
+  "folders": [
+    {
+      "name": "video",
+      "path": "demo/Downloads/video",
+      "relative_path": "video",
+      "file_count": 20,
+      "total_size": 3758096384
+    },
+    {
+      "name": "images",
+      "path": "demo/Downloads/images",
+      "relative_path": "images",
+      "file_count": 42,
+      "total_size": 1073741824
+    },
+    {
+      "name": "archives",
+      "path": "demo/Downloads/archives",
+      "relative_path": "archives",
+      "file_count": 24,
+      "total_size": 805306368
+    },
+    {
+      "name": "projects",
+      "path": "demo/Downloads/projects",
+      "relative_path": "projects",
+      "file_count": 67,
+      "total_size": 1073741824
+    }
+  ],
+  "files": [
+    {
+      "path": "demo/Downloads/video/launch-film.mp4",
+      "relative_path": "video/launch-film.mp4",
+      "size": 1610612736,
+      "suffix": ".mp4",
+      "modified_time": 0
+    },
+    {
+      "path": "demo/Downloads/video/raw-footage.mov",
+      "relative_path": "video/raw-footage.mov",
+      "size": 1342177280,
+      "suffix": ".mov",
+      "modified_time": 0
+    },
+    {
+      "path": "demo/Downloads/projects/toolchain.iso",
+      "relative_path": "projects/toolchain.iso",
+      "size": 805306368,
+      "suffix": ".iso",
+      "modified_time": 0
+    },
+    {
+      "path": "demo/Downloads/archives/catalog.zip",
+      "relative_path": "archives/catalog.zip",
+      "size": 536870912,
+      "suffix": ".zip",
+      "modified_time": 0
+    }
+  ],
+  "duplicates": {
+    "scanned": true,
+    "group_count": 1,
+    "potential_saved_size": 134217728
+  }
+}
