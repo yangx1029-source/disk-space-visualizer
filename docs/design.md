@@ -94,3 +94,37 @@ CLI 使用 Typer/Click 的标准未知选项校验。`--ignore` 是可重复的�
 - SHA256 使用分块读取，避免大文件一次性读入内存。
 - HTML 报告只展示 Top N 图表数据，避免浏览器渲染过多节点。
 - Playwright smoke test 使用 Chromium 检查离线 SVG、CDN 失败降级、XSS 防护和 390px/1440px 布局尺寸。
+
+## v0.7 深度目录树与可靠性
+
+`scanner.py` 通过 `os.scandir` 流式读取目录，并使用显式栈记录 enter/exit
+事件，因此不依赖 Python 递归深度。每个 `DirectoryNode` 同时记录直接文件和
+递归汇总值，`ScanResult` 还保留问题、进度和完整性信息。软链接目录不跟随，
+权限错误、文件消失和目录变化会记录为 `ScanIssue` 后继续扫描。
+
+```text
+os.scandir -> FileInfo + DirectoryNode + ScanIssue
+                         |
+                         v
+              AnalysisResult / ScanResult
+                  |                 |
+          CLI / GUI progress   Report tree crop
+                  |                 |
+             Snapshot v2 -> Deep comparison
+```
+
+报告展示树可以按最大深度、最大节点数、最小大小和占比裁剪；被裁剪的目录会
+确定性地合并为“其他”，而 Snapshot 保存完整目录统计，避免展示限制污染历史
+数据。普通报告不携带全量文件库存，`scan --json` 才启用完整清单导出。
+
+取消采用 `CancellationToken` 协作式传播，在目录、文件和 SHA256 分块之间检查；
+取消后不会写出不完整 HTML 或 Snapshot。GUI 只在主线程处理 Queue 事件，后台线程
+只调用 Service 并回传进度，因此异常和取消都能恢复按钮状态。
+
+重复检测使用 `(size, physical identity)` 预分组，再对稳定文件分块计算 SHA256。
+同一个 inode 的硬链接只显示别名，不计入可释放空间；哈希前后 stat 不一致的文件
+会被跳过，避免把正在写入的文件误报为重复。
+
+Snapshot schema v2 保存平台、大小写敏感性、扫描参数、树完整性和错误摘要。加载
+v1/v0.6 文件时只在内存中迁移并标记为不完整，不覆盖原 JSON；比较时不再无条件
+`casefold`，会根据两份快照的路径语义产生明确警告。

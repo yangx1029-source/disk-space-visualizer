@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.7.0] - 2026-07-27
+
+### Added
+
+- 深度目录树扫描与可下钻 Treemap，支持搜索、面包屑、返回、移动端布局和确定性“其他”聚合。
+- 结构化扫描进度、错误记录、协作式取消和 GUI Cancel 工作流。
+- Snapshot schema v2，保存完整目录树、平台路径语义、扫描参数和完整性信息。
+- 深层目录比较、进入/离开 Top 文件、大小变化文件和路径语义警告。
+- 硬链接别名识别、文件稳定性校验和更保守的可释放空间计算。
+
+### Changed
+
+- `diskvis.version` 成为唯一版本来源，CLI、GUI、报告和 Windows 元数据统一为 `0.7.0`。
+- 普通报告数据不再携带全量文件清单；只有 `scan --json` 输出完整清单。
+- Scanner 使用 `os.scandir` 流式遍历，保留旧 `scan_directory()` API 兼容性。
+- CI 增加多 Python 版本、平台路径、构建和依赖检查；新增 tag 驱动发布工作流。
+
+### Compatibility
+
+- v0.6/v1 Snapshot JSON 可以读取并参与比较，加载后标记为不完整树；不会改写原文件。
+
 本项目的所有重要变更都会记录在此文件中。版本格式遵循
 [Semantic Versioning](https://semver.org/)。
 

@@ -15,7 +15,7 @@ def test_version_option() -> None:
     result = runner.invoke(app, ["--version"])
 
     assert result.exit_code == 0, result.output
-    assert result.output.strip() == "diskvis 0.6.0"
+    assert result.output.strip() == "diskvis 0.7.0"
 
 
 def test_scan_command_exports_json(tmp_path: Path) -> None:

@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-2ea44f.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/yangx1029-source/disk-space-visualizer)](https://github.com/yangx1029-source/disk-space-visualizer/releases)
 
-> 跨平台磁盘空间可视化分析器 · `v0.6.0`
+> 跨平台磁盘空间可视化分析器 · `v0.7.0`
 
 Disk Space Visualizer 是一个使用 Python 开发的本地磁盘分析工具，命令行名称为
 `diskvis`。它可以递归扫描目录、定位大文件、统计文件类型和一级目录占用、检测重复
@@ -112,6 +112,8 @@ diskvis scan ./Downloads --min-size 100MB
 diskvis scan ./Downloads --json report.json
 ```
 
+`scan --json` 会额外保留完整文件清单；普通终端输出和 HTML 报告只携带展示所需数据。
+
 `--ignore` 是可重复选项。自定义值会与默认忽略规则合并。
 
 ### 生成 HTML 报告
@@ -121,6 +123,7 @@ diskvis report ./Downloads
 diskvis report ./Downloads --output reports/downloads-report.html
 diskvis report ./Downloads --include-duplicates
 diskvis report ./Downloads --offline
+diskvis report ./Downloads --max-depth 5 --max-nodes 500 --tree-min-size 100MB
 ```
 
 默认输出为 `reports/report.html`。在线模式加载锁定版本的 ECharts 5.5.1；如果 CDN
@@ -165,6 +168,9 @@ diskvis compare old.json new.json --top 20
 diskvis compare old.json new.json --output reports/comparison.html
 ```
 
+Snapshot v2 记录完整多级目录树、平台路径语义、扫描参数、错误摘要和树完整性。
+旧 v0.6/v1 快照仍可直接加载和比较，但会被标记为不完整，不会改写原 JSON。
+
 终端会显示总空间变化、Top 增长目录、Top 减少目录、新增大文件和移出的大文件。
 `--output` 会额外生成带时间轴和深浅主题的 Liquid Glass HTML 对比报告。
 
@@ -180,10 +186,10 @@ scripts\build_windows.bat
 
 - `dist\windows\DiskSpaceVisualizer.exe`：图形界面，双击即可使用。
 - `dist\windows\diskvis.exe`：命令行工具，适合脚本与高级参数。
-- `dist\DiskSpaceVisualizer-v0.6.0-Windows.zip`：可直接发送或解压使用的便携包。
+- `dist\DiskSpaceVisualizer-v0.7.0-Windows.zip`：可直接发送或解压使用的便携包。
 
 将整个 `dist\windows` 文件夹复制到另一台 Windows 电脑即可运行，无需安装 Python。
-GUI 标题、HTML 报告顶部和 Windows 文件属性都会显示当前 `v0.6.0`；
+GUI 标题、HTML 报告顶部和 Windows 文件属性都会显示当前 `v0.7.0`；
 也可以执行 `diskvis.exe --version` 核对版本。
 
 ## HTML 报告截图
@@ -348,10 +354,16 @@ XSS 防护、重复检测三态、Liquid Glass、主题持久化、Treemap，以
 - [x] 识别 Top 大文件新增与移出。
 - [x] 生成 Liquid Glass 历史对比报告。
 
-### v0.7 · Deep Tree & Web Dashboard
+### v0.7 · Deep Tree & Reliability
 
-- [ ] 深度目录树分析和多层级下钻。
-- [ ] 本地 Web Dashboard。
+- [x] 深度目录树分析和多层级下钻。
+- [x] 结构化进度、取消扫描、硬链接语义和稳定性保护。
+- [x] Snapshot schema v2 与深层目录比较。
+
+### v0.8 · Web Dashboard
+
+- [ ] 独立本地 Web Dashboard。
+- [ ] 多次快照趋势和空间变化筛选。
 
 完整计划见 [docs/roadmap.md](docs/roadmap.md)。
 

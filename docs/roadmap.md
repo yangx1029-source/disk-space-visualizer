@@ -1,6 +1,6 @@
 # Roadmap
 
-当前稳定版本：`v0.6.0`。
+当前稳定版本：`v0.7.0`。
 
 ## v0.1.0 基础扫描
 
@@ -47,12 +47,17 @@
 - 使用 Rich 展示变化排行。
 - 生成带时间轴的 Liquid Glass HTML 对比报告。
 
-## v0.7.0 Deep Tree & Web Dashboard
+## v0.7.0 Deep Tree & Reliability
 
 - 增加深度目录树分析和多层级下钻。
-- 提供本地 Web Dashboard。
+- 提供可下钻的本地 HTML Dashboard。
 - 管理快照历史和空间变化趋势。
 - 增加大型目录性能基准与取消扫描能力。
+
+## v0.8.0 Web Dashboard
+
+- 深度目录树 Web Dashboard。
+- Snapshot 趋势图与多次历史对比。
 
 ## v1.0.0 Stable Desktop Release
 
