@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,7 @@ from rich.table import Table
 from . import __version__
 from .exporter import export_json
 from .formatter import format_size, parse_size
+from .models import AnalysisCancelled, CancellationToken, ScanProgress
 from .report import generate_comparison_report, generate_html_report
 from .scanner import DEFAULT_IGNORE_DIRS
 from .service import AnalysisOptions, AnalysisResult, analyze_directory
@@ -66,6 +68,8 @@ def _parse_min_size(min_size: str | None) -> int:
 
 
 def _analyze_with_progress(options: AnalysisOptions) -> AnalysisResult:
+    token = options.cancellation or CancellationToken()
+    options = replace(options, cancellation=token)
     with Progress(
         SpinnerColumn("line"),
         TextColumn("[progress.description]{task.description}"),
@@ -74,11 +78,23 @@ def _analyze_with_progress(options: AnalysisOptions) -> AnalysisResult:
     ) as progress:
         task_id = progress.add_task("Scanning files...", total=None)
 
-        def on_item(path: Path, is_dir: bool) -> None:
-            label = "folder" if is_dir else "file"
-            progress.update(task_id, description=f"Scanning {label}: {escape(path.name[:48])}")
+        def on_progress(event: ScanProgress) -> None:
+            current = event.current_path.name[:48] if event.current_path else ""
+            description = (
+                f"{event.phase}: {event.files_scanned} files, "
+                f"{event.dirs_scanned} dirs, {event.errors} errors"
+            )
+            if event.phase == "duplicates":
+                description += f", hashes {event.hashes_completed}/{event.hashes_total}"
+            if current:
+                description += f" | {escape(current)}"
+            progress.update(task_id, description=description)
 
-        return analyze_directory(options, on_item=on_item)
+        try:
+            return analyze_directory(options, on_progress=on_progress)
+        except KeyboardInterrupt as exc:
+            token.cancel()
+            raise AnalysisCancelled("analysis cancelled by user") from exc
 
 
 def _summary_table(summary: dict[str, Any]) -> Table:
@@ -243,8 +259,12 @@ def scan(
                 top=top,
                 min_size=min_size_bytes,
                 ignore_dirs=ignore_dirs,
+                include_inventory=json_output is not None,
             )
         )
+    except AnalysisCancelled as exc:
+        console.print(f"[yellow]Cancelled:[/yellow] {exc}")
+        raise typer.Exit(code=130) from exc
     except (FileNotFoundError, NotADirectoryError, PermissionError, OSError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -283,10 +303,35 @@ def report(
         "--offline",
         help="Do not load ECharts from a CDN; use the built-in SVG fallback charts.",
     ),
+    max_depth: int | None = typer.Option(
+        4,
+        "--max-depth",
+        min=0,
+        help="Maximum directory depth shown in the report tree.",
+    ),
+    max_nodes: int | None = typer.Option(
+        250,
+        "--max-nodes",
+        min=1,
+        help="Maximum directory nodes shown before aggregation into 其他.",
+    ),
+    tree_min_size: str | None = typer.Option(
+        None,
+        "--tree-min-size",
+        help="Hide smaller tree branches and aggregate them into 其他.",
+    ),
+    tree_min_ratio: float = typer.Option(
+        0.0,
+        "--tree-min-ratio",
+        min=0.0,
+        max=1.0,
+        help="Minimum fraction of total space for a visible tree branch.",
+    ),
 ) -> None:
     """Generate an HTML visual report."""
     ignore_dirs = _merge_ignore(ignore)
     min_size_bytes = _parse_min_size(min_size)
+    tree_min_size_bytes = _parse_min_size(tree_min_size)
 
     try:
         result = _analyze_with_progress(
@@ -296,8 +341,15 @@ def report(
                 min_size=min_size_bytes,
                 ignore_dirs=ignore_dirs,
                 include_duplicates=include_duplicates,
+                max_depth=max_depth,
+                max_nodes=max_nodes,
+                min_tree_size=tree_min_size_bytes,
+                min_tree_ratio=tree_min_ratio,
             )
         )
+    except AnalysisCancelled as exc:
+        console.print(f"[yellow]Cancelled:[/yellow] {exc}")
+        raise typer.Exit(code=130) from exc
     except (FileNotFoundError, NotADirectoryError, PermissionError, OSError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -337,6 +389,9 @@ def duplicates_cmd(
                 include_duplicates=True,
             )
         )
+    except AnalysisCancelled as exc:
+        console.print(f"[yellow]Cancelled:[/yellow] {exc}")
+        raise typer.Exit(code=130) from exc
     except (FileNotFoundError, NotADirectoryError, PermissionError, OSError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -381,6 +436,18 @@ def snapshot_cmd(
         "--include-duplicates",
         help="Run duplicate detection and retain its status.",
     ),
+    max_depth: int | None = typer.Option(
+        None,
+        "--max-depth",
+        min=0,
+        help="Persist a complete scan; this limits only the presentation metadata.",
+    ),
+    max_nodes: int | None = typer.Option(
+        None,
+        "--max-nodes",
+        min=1,
+        help="Persist a complete scan; this limits only the presentation metadata.",
+    ),
 ) -> None:
     """Scan a directory and save a versioned JSON snapshot."""
     ignore_dirs = _merge_ignore(ignore)
@@ -394,9 +461,14 @@ def snapshot_cmd(
                 min_size=min_size_bytes,
                 ignore_dirs=ignore_dirs,
                 include_duplicates=include_duplicates,
+                max_depth=max_depth,
+                max_nodes=max_nodes,
             )
         )
         destination = save_snapshot(result, output_path=output)
+    except AnalysisCancelled as exc:
+        console.print(f"[yellow]Cancelled:[/yellow] {exc}")
+        raise typer.Exit(code=130) from exc
     except (FileNotFoundError, NotADirectoryError, PermissionError, OSError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -444,13 +516,18 @@ def compare_cmd(
     console.print(
         _folder_changes_table(data["shrinking_folders"], "Top Shrinking Folders")
     )
-    console.print(_file_changes_table(data["added_files"], "New Large Files"))
-    console.print(_file_changes_table(data["removed_files"], "Removed Large Files"))
+    console.print(
+        _file_changes_table(data["entered_top_files"], "Entered Top Files (New Large Files)")
+    )
+    console.print(
+        _file_changes_table(data["left_top_files"], "Left Top Files (Removed Large Files)")
+    )
 
-    if not data["roots_match"]:
-        console.print(
-            "[yellow]Warning:[/yellow] snapshots use different root paths."
-        )
+    for warning in data.get("warnings", []):
+        console.print(f"[yellow]Warning:[/yellow] {escape(str(warning))}")
+    completeness = data.get("completeness", {})
+    if not completeness.get("old_tree_complete", True) or not completeness.get("new_tree_complete", True):
+        console.print("[yellow]Warning:[/yellow] one snapshot has incomplete directory data.")
     if output:
         try:
             generate_comparison_report(data, output)
