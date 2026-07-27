@@ -53,6 +53,7 @@ def generate_html_report(
         largest_chart_json=_json(data.get("largest_files", [])),
         folder_chart_json=_json(data.get("folder_stats", [])),
         distribution_chart_json=_json(data.get("size_distribution", {})),
+        tree_chart_json=_json(data.get("tree_stats", [])),
     )
     html = _clean_html(template.render(**context))
     output_path.write_text(html, encoding="utf-8")
@@ -67,7 +68,20 @@ def generate_comparison_report(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     template = _env().get_template("comparison.html.j2")
+    context = dict(data)
+    context.setdefault("warnings", [])
+    context.setdefault(
+        "completeness",
+        {
+            "old_tree_complete": True,
+            "new_tree_complete": True,
+            "old_schema_version": 1,
+            "new_schema_version": 1,
+            "old_error_count": 0,
+            "new_error_count": 0,
+        },
+    )
     html = _clean_html(
-        template.render(comparison=data, app_version=__version__)
+        template.render(comparison=context, app_version=__version__)
     )
     output_path.write_text(html, encoding="utf-8")

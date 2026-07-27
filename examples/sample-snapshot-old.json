@@ -1,13 +1,21 @@
 {
   "metadata": {
-    "version": "0.6.0",
+    "schema_version": 2,
+    "app_version": "0.7.0",
     "timestamp": "2026-07-19T10:30:00+08:00",
-    "root_path": "demo/Downloads"
+    "root_path": "demo/Downloads",
+    "platform": "demo",
+    "case_sensitive": true,
+    "scan_parameters": {},
+    "tree_complete": false,
+    "tree_limited": true,
+    "error_summary": {"count": 0}
   },
   "summary": {
     "total_size": 5368709120,
     "file_count": 200,
-    "folder_count": 20
+    "folder_count": 20,
+    "error_count": 0
   },
   "folders": [
     {

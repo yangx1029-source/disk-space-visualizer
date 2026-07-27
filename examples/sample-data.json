@@ -90,6 +90,95 @@
     "100 MB - 1 GB": 20,
     ">= 1 GB": 4
   },
+  "tree_stats": [
+    {
+      "relative_path": "",
+      "parent_relative_path": null,
+      "display_name": "Downloads",
+      "depth": 0,
+      "direct_file_count": 95,
+      "recursive_file_count": 248,
+      "direct_size": 503316996,
+      "recursive_size": 6969675472,
+      "child_directories": ["video", "images", "archives", "projects"],
+      "is_directory": true,
+      "is_virtual": false,
+      "is_aggregate": false
+    },
+    {
+      "relative_path": "[root files]",
+      "path": "[root files]",
+      "parent_relative_path": "",
+      "display_name": "[root files]",
+      "depth": 1,
+      "recursive_file_count": 95,
+      "recursive_size": 503316996,
+      "is_directory": false,
+      "is_virtual": true,
+      "is_aggregate": false
+    },
+    {
+      "relative_path": "video",
+      "path": "demo/Downloads/video",
+      "parent_relative_path": "",
+      "display_name": "video",
+      "depth": 1,
+      "recursive_file_count": 20,
+      "recursive_size": 3435973836,
+      "child_directories": ["video/raw"],
+      "is_directory": true,
+      "is_virtual": false,
+      "is_aggregate": false
+    },
+    {
+      "relative_path": "video/raw",
+      "path": "demo/Downloads/video/raw",
+      "parent_relative_path": "video",
+      "display_name": "raw",
+      "depth": 2,
+      "recursive_file_count": 8,
+      "recursive_size": 1288490188,
+      "is_directory": true,
+      "is_virtual": false,
+      "is_aggregate": false
+    },
+    {
+      "relative_path": "images",
+      "path": "demo/Downloads/images",
+      "parent_relative_path": "",
+      "display_name": "images",
+      "depth": 1,
+      "recursive_file_count": 42,
+      "recursive_size": 1195376640,
+      "is_directory": true,
+      "is_virtual": false,
+      "is_aggregate": false
+    },
+    {
+      "relative_path": "archives",
+      "path": "demo/Downloads/archives",
+      "parent_relative_path": "",
+      "display_name": "archives",
+      "depth": 1,
+      "recursive_file_count": 24,
+      "recursive_size": 1048576000,
+      "is_directory": true,
+      "is_virtual": false,
+      "is_aggregate": false
+    },
+    {
+      "relative_path": "projects",
+      "path": "demo/Downloads/projects",
+      "parent_relative_path": "",
+      "display_name": "projects",
+      "depth": 1,
+      "recursive_file_count": 67,
+      "recursive_size": 786432000,
+      "is_directory": true,
+      "is_virtual": false,
+      "is_aggregate": false
+    }
+  ],
   "duplicates": [
     {
       "size": 268435456,

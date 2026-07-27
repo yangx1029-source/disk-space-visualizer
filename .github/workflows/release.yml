@@ -1,0 +1,64 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  python-dist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build Python distributions
+        run: |
+          python -m pip install --upgrade pip build
+          python scripts/check_version.py
+          python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: dist/*
+
+  windows-portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build portable Windows package
+        shell: cmd
+        run: scripts\build_windows.bat
+      - name: Validate packaged CLI
+        shell: pwsh
+        run: .\dist\windows\diskvis.exe --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable
+          path: dist/DiskSpaceVisualizer-*-Windows.zip
+
+  publish:
+    needs: [python-dist, windows-portable]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      - name: Flatten artifacts and create checksums
+        shell: bash
+        run: |
+          find release-assets -type f -not -name SHA256SUMS.txt -exec cp {} release-assets/ \;
+          find release-assets -mindepth 1 -type d -exec rm -rf {} + 2>/dev/null || true
+          (cd release-assets && sha256sum *.whl *.tar.gz *.zip > SHA256SUMS.txt)
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: release-assets/*

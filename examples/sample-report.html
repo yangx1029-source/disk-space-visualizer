@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -24,6 +25,12 @@
   </script>
 
   <style>
+    /* Shared report design tokens: keep chart, cards, and controls on one system. */
+:root {
+  --report-radius: 22px;
+  --report-control-radius: 11px;
+  --report-focus-offset: 3px;
+}
     :root {
       --glass-bg: rgba(20, 27, 42, 0.58);
       --glass-border: rgba(255, 255, 255, 0.18);
@@ -479,6 +486,91 @@
       height: 440px;
     }
 
+    .tree-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      margin: 4px 0 12px;
+    }
+
+    .tree-button,
+    .tree-search input {
+      min-height: 34px;
+      color: var(--text-primary);
+      background: var(--surface-soft);
+      border: 1px solid var(--glass-border);
+      border-radius: 11px;
+    }
+
+    .tree-button {
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+
+    .tree-button:disabled {
+      cursor: not-allowed;
+      opacity: .42;
+    }
+
+    .tree-search {
+      margin-left: auto;
+    }
+
+    .tree-search input {
+      width: min(240px, 32vw);
+      padding: 6px 10px;
+      outline: none;
+    }
+
+    .tree-search input:focus,
+    .tree-button:focus-visible,
+    .tree-breadcrumb:focus-visible {
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 3px var(--focus-ring);
+      outline: none;
+    }
+
+    .tree-breadcrumbs {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 4px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .tree-breadcrumb {
+      padding: 4px 6px;
+      color: var(--text-secondary);
+      background: transparent;
+      border: 0;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .tree-breadcrumb[aria-current="page"] {
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+
+    .tree-separator {
+      color: var(--text-secondary);
+      opacity: .55;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     .treemap-selection {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto auto;
@@ -706,6 +798,20 @@
         grid-template-columns: minmax(0, 1fr) auto;
       }
 
+      .tree-toolbar {
+        align-items: stretch;
+        flex-wrap: wrap;
+      }
+
+      .tree-search {
+        width: 100%;
+        margin-left: 0;
+      }
+
+      .tree-search input {
+        width: 100%;
+      }
+
       .selection-count {
         display: none;
       }
@@ -814,7 +920,7 @@
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">DV</span>
         <span>Disk Space Visualizer</span>
-        <span class="version-tag">v0.6.0</span>
+        <span class="version-tag">v0.7.0</span>
       </div>
       <div class="nav-context">
         <span class="nav-path" title="demo/Downloads">demo/Downloads</span>
@@ -898,6 +1004,14 @@
           <p class="section-kicker">面积代表一级目录占用，点击区块查看目录详情</p>
         </div>
       </div>
+      <div class="tree-toolbar" role="toolbar" aria-label="Directory tree controls">
+  <button id="treeBack" class="tree-button" type="button" disabled aria-label="Go back">Back</button>
+  <nav id="treeBreadcrumbs" class="tree-breadcrumbs" aria-label="Directory breadcrumbs"></nav>
+  <label class="tree-search">
+    <span class="sr-only">Search directories</span>
+    <input id="treeSearch" type="search" placeholder="Search directories" autocomplete="off">
+  </label>
+</div>
       <div id="treemapChart" class="chart treemap-chart" aria-label="一级目录空间 Treemap"></div>
       <div id="treemapSelection" class="treemap-selection" aria-live="polite">
         <div>
@@ -1157,6 +1271,7 @@
     const largestFiles = [{"path": "demo/Downloads/video/launch-film.mp4", "size": 1610612736, "suffix": ".mp4", "modified_time": 0, "size_human": "1.50 GB"}, {"path": "demo/Downloads/video/raw-footage.mov", "size": 1288490188, "suffix": ".mov", "modified_time": 0, "size_human": "1.20 GB"}, {"path": "demo/Downloads/images/ubuntu.iso", "size": 1073741824, "suffix": ".iso", "modified_time": 0, "size_human": "1.00 GB"}, {"path": "demo/Downloads/archives/catalog.zip", "size": 734003200, "suffix": ".zip", "modified_time": 0, "size_human": "700.00 MB"}, {"path": "demo/Downloads/projects/disk-space-visualizer.tar.gz", "size": 524288000, "suffix": ".gz", "modified_time": 0, "size_human": "500.00 MB"}, {"path": "demo/Downloads/backups/photos-backup.7z", "size": 314572800, "suffix": ".7z", "modified_time": 0, "size_human": "300.00 MB"}, {"path": "demo/Downloads/data/analytics.parquet", "size": 209715200, "suffix": ".parquet", "modified_time": 0, "size_human": "200.00 MB"}, {"path": "demo/Downloads/design/brand-assets.psd", "size": 157286400, "suffix": ".psd", "modified_time": 0, "size_human": "150.00 MB"}];
     const folderStats = [{"path": "demo/Downloads/video", "count": 20, "total_size": 3435973836, "total_size_human": "3.20 GB"}, {"path": "demo/Downloads/images", "count": 42, "total_size": 1195376640, "total_size_human": "1.11 GB"}, {"path": "demo/Downloads/archives", "count": 24, "total_size": 1048576000, "total_size_human": "1000.00 MB"}, {"path": "demo/Downloads/projects", "count": 67, "total_size": 786432000, "total_size_human": "750.00 MB"}, {"path": "[root files]", "count": 95, "total_size": 503316996, "total_size_human": "480.00 MB"}];
     const distribution = {"\u003c 1 MB": 132, "1 MB - 10 MB": 61, "10 MB - 100 MB": 31, "100 MB - 1 GB": 20, "\u003e= 1 GB": 4};
+    const treeStats = [{"relative_path": "", "parent_relative_path": null, "display_name": "Downloads", "depth": 0, "direct_file_count": 95, "recursive_file_count": 248, "direct_size": 503316996, "recursive_size": 6969675472, "child_directories": ["video", "images", "archives", "projects"], "is_directory": true, "is_virtual": false, "is_aggregate": false}, {"relative_path": "[root files]", "path": "[root files]", "parent_relative_path": "", "display_name": "[root files]", "depth": 1, "recursive_file_count": 95, "recursive_size": 503316996, "is_directory": false, "is_virtual": true, "is_aggregate": false}, {"relative_path": "video", "path": "demo/Downloads/video", "parent_relative_path": "", "display_name": "video", "depth": 1, "recursive_file_count": 20, "recursive_size": 3435973836, "child_directories": ["video/raw"], "is_directory": true, "is_virtual": false, "is_aggregate": false}, {"relative_path": "video/raw", "path": "demo/Downloads/video/raw", "parent_relative_path": "video", "display_name": "raw", "depth": 2, "recursive_file_count": 8, "recursive_size": 1288490188, "is_directory": true, "is_virtual": false, "is_aggregate": false}, {"relative_path": "images", "path": "demo/Downloads/images", "parent_relative_path": "", "display_name": "images", "depth": 1, "recursive_file_count": 42, "recursive_size": 1195376640, "is_directory": true, "is_virtual": false, "is_aggregate": false}, {"relative_path": "archives", "path": "demo/Downloads/archives", "parent_relative_path": "", "display_name": "archives", "depth": 1, "recursive_file_count": 24, "recursive_size": 1048576000, "is_directory": true, "is_virtual": false, "is_aggregate": false}, {"relative_path": "projects", "path": "demo/Downloads/projects", "parent_relative_path": "", "display_name": "projects", "depth": 1, "recursive_file_count": 67, "recursive_size": 786432000, "is_directory": true, "is_virtual": false, "is_aggregate": false}];
     const themeStorageKey = 'diskvis-theme';
     const chartElements = [
       document.getElementById('treemapChart'),
@@ -1192,15 +1307,55 @@
       return value.split(/[\\/]/).filter(Boolean).pop() || value;
     };
 
-    const treemapData = folderStats.map(item => ({
-      name: folderLabel(item.path),
-      path: String(item.path),
-      value: Number(item.total_size) || 0,
-      count: Number(item.count) || 0
-    }));
+    const treeNodes = Array.isArray(treeStats) ? treeStats.map(item => ({ ...item })) : [];
+    let treePath = '';
+    let treeSearch = '';
+
+    function treeNodeChildren(parentPath) {
+      const children = treeNodes
+        .filter(item => String(item.parent_relative_path ?? '') === parentPath)
+        .filter(item => !(parentPath === '' && String(item.relative_path || '') === ''))
+        .filter(item => !treeSearch || String(item.display_name || item.relative_path)
+          .toLocaleLowerCase().includes(treeSearch.toLocaleLowerCase()))
+        .sort((left, right) => Number(right.recursive_size || 0) - Number(left.recursive_size || 0));
+      return children;
+    }
+
+    function treeChartItem(item) {
+      return {
+        name: String(item.display_name || item.relative_path || item.name || item.path),
+        path: String(item.path || item.relative_path || item.display_name),
+        relativePath: String(item.relative_path || ''),
+        value: Number(item.recursive_size ?? item.total_size ?? 0) || 0,
+        count: Number(item.recursive_file_count ?? item.file_count ?? item.count ?? 0) || 0,
+        directSize: Number(item.direct_size || 0),
+        childCount: Array.isArray(item.child_directories) ? item.child_directories.length : 0,
+        isDirectory: item.is_directory !== false,
+        isAggregate: Boolean(item.is_aggregate)
+      };
+    }
+
+    function currentTreeItems() {
+      if (treeNodes.length) return treeNodeChildren(treePath).map(treeChartItem);
+      return folderStats.map(item => ({
+        name: folderLabel(item.path),
+        path: String(item.path),
+        relativePath: String(item.path),
+        value: Number(item.total_size) || 0,
+        count: Number(item.count) || 0,
+        directSize: Number(item.total_size) || 0,
+        childCount: 0,
+        isDirectory: true,
+        isAggregate: false
+      }));
+    }
+
+    // v0.6-compatible data source: const treemapData = folderStats.map(item => ({ ...item }));
+    let treemapData = currentTreeItems();
 
     window.__diskvisReport = Object.freeze({
       treemapData: treemapData.map(item => ({ ...item })),
+      treeStats: treeNodes.map(item => ({ ...item })),
       echartsVersion: '5.5.1'
     });
 
@@ -1226,6 +1381,60 @@
       document.getElementById('selectionCount').textContent = `${item.count} 个文件`;
       document.getElementById('selectionSize').textContent = formatBytes(item.value);
     }
+
+    function updateTreeControls() {
+      const back = document.getElementById('treeBack');
+      const breadcrumbs = document.getElementById('treeBreadcrumbs');
+      if (!back || !breadcrumbs) return;
+      back.disabled = !treePath;
+      breadcrumbs.replaceChildren();
+      const parts = treePath ? treePath.split('/').filter(Boolean) : [];
+      const paths = [''];
+      parts.forEach((_part, index) => paths.push(parts.slice(0, index + 1).join('/')));
+      paths.forEach((path, index) => {
+        if (index) {
+          const separator = document.createElement('span');
+          separator.className = 'tree-separator';
+          separator.textContent = '/';
+          breadcrumbs.appendChild(separator);
+        }
+        const button = document.createElement('button');
+        button.className = 'tree-breadcrumb';
+        button.type = 'button';
+        button.textContent = path ? folderLabel(path) : 'Root';
+        button.setAttribute('aria-current', path === treePath ? 'page' : 'false');
+        button.addEventListener('click', () => setTreePath(path));
+        breadcrumbs.appendChild(button);
+      });
+    }
+
+    function setTreePath(path, selectionItem = null) {
+      treePath = String(path || '');
+      treemapData = currentTreeItems();
+      updateTreeControls();
+      renderCharts();
+      updateTreemapSelection(selectionItem || treemapData[0]);
+    }
+
+    function openTreeItem(item) {
+      updateTreemapSelection(item);
+      if (item.isDirectory && !item.isAggregate && treeNodes.some(
+        child => String(child.parent_relative_path ?? '') === item.relativePath
+      )) {
+        setTreePath(item.relativePath, item);
+      }
+    }
+
+    document.getElementById('treeBack')?.addEventListener('click', () => {
+      const parts = treePath.split('/').filter(Boolean);
+      parts.pop();
+      setTreePath(parts.join('/'));
+    });
+    document.getElementById('treeSearch')?.addEventListener('input', event => {
+      treeSearch = event.target.value.trim();
+      treemapData = currentTreeItems();
+      renderCharts();
+    });
 
     function currentTheme() {
       return document.documentElement.classList.contains('theme-light') ? 'light' : 'dark';
@@ -1421,7 +1630,7 @@
           }
         }
 
-        const selectItem = () => updateTreemapSelection(item);
+        const selectItem = () => openTreeItem(item);
         group.addEventListener('click', selectItem);
         group.addEventListener('keydown', event => {
           if (event.key === 'Enter' || event.key === ' ') {
@@ -1636,7 +1845,7 @@
           formatter: params => tooltipBox(
             params.data.path,
             formatBytes(params.data.value),
-            `${params.data.count} 个文件`
+            `${params.data.count} 个文件 · ${params.data.childCount || 0} 个子目录`
           )
         },
         series: [{
@@ -1671,7 +1880,7 @@
           }]
         }]
       });
-      treemap.on('click', params => updateTreemapSelection(params.data));
+      treemap.on('click', params => openTreeItem(params.data));
 
       charting.init(document.getElementById('typeChart')).setOption({
         backgroundColor: 'transparent',
@@ -1818,9 +2027,8 @@
       }, 100);
     });
 
-    if (treemapData.length) {
-      updateTreemapSelection(treemapData[0]);
-    }
+    updateTreeControls();
+    if (treemapData.length) updateTreemapSelection(treemapData[0]);
     updateThemeButton();
     renderCharts();
   </script>

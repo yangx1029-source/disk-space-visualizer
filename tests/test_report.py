@@ -106,7 +106,7 @@ def test_report_has_theme_tokens_and_pinned_echarts(tmp_path: Path) -> None:
     online_html = online_output.read_text(encoding="utf-8")
     offline_html = offline_output.read_text(encoding="utf-8")
 
-    assert "v0.6.0" in online_html
+    assert "v0.7.0" in online_html
     assert "--glass-bg" in online_html
     assert "--glass-border" in online_html
     assert "--glass-shadow" in online_html
@@ -160,6 +160,9 @@ def test_report_contains_treemap_data_and_svg_fallback(tmp_path: Path) -> None:
     assert "const treemapData = folderStats.map" in html
     assert "type: 'treemap'" in html
     assert "renderFallbackTreemap" in html
+    assert "treeBreadcrumbs" in html
+    assert "treeSearch" in html
+    assert "treeStats" in html
     assert '"path": "demo/media"' in html
     assert '"total_size": 4' in html
 

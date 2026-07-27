@@ -724,6 +724,15 @@
       </div>
     </header>
 
+    {% if comparison.warnings or not comparison.completeness.old_tree_complete or not comparison.completeness.new_tree_complete %}
+    <section class="card warning-card reveal" style="--order: 0.5" aria-label="Comparison warnings">
+      {% for warning in comparison.warnings %}<p>{{ warning }}</p>{% endfor %}
+      {% if not comparison.completeness.old_tree_complete or not comparison.completeness.new_tree_complete %}
+      <p>目录树数据不完整，目录变化仅代表已保存的扫描范围。</p>
+      {% endif %}
+    </section>
+    {% endif %}
+
     <section class="card timeline reveal" style="--order: 1" aria-label="快照时间轴">
       <div class="timepoint">
         <div class="time-label">旧快照</div>
@@ -813,16 +822,17 @@
     </section>
 
     <section class="card table-card reveal" style="--order: 8">
+      {% set entered_files = comparison.entered_top_files | default(comparison.added_files, true) %}
       <div class="section-heading">
         <h2>新增大文件</h2>
         <p class="section-note">新快照 Top 大文件中首次出现的路径</p>
       </div>
-      {% if comparison.added_files %}
+      {% if entered_files %}
       <div class="table-scroll">
         <table>
           <thead><tr><th>路径</th><th>类型</th><th class="num">大小</th></tr></thead>
           <tbody>
-          {% for file in comparison.added_files %}
+          {% for file in entered_files %}
             <tr>
               <td class="path-cell">{{ file.path }}</td>
               <td>{{ file.suffix or "[no extension]" }}</td>
@@ -838,16 +848,17 @@
     </section>
 
     <section class="card table-card reveal" style="--order: 9">
+      {% set left_files = comparison.left_top_files | default(comparison.removed_files, true) %}
       <div class="section-heading">
         <h2>移出的大文件</h2>
         <p class="section-note">旧快照 Top 大文件中不再出现的路径</p>
       </div>
-      {% if comparison.removed_files %}
+      {% if left_files %}
       <div class="table-scroll">
         <table>
           <thead><tr><th>路径</th><th>类型</th><th class="num">原大小</th></tr></thead>
           <tbody>
-          {% for file in comparison.removed_files %}
+          {% for file in left_files %}
             <tr>
               <td class="path-cell">{{ file.path }}</td>
               <td>{{ file.suffix or "[no extension]" }}</td>
@@ -859,6 +870,31 @@
       </div>
       {% else %}
       <div class="empty-state">Top 大文件列表中没有移出的路径。</div>
+      {% endif %}
+    </section>
+
+    <section class="card table-card reveal" style="--order: 10">
+      <div class="section-heading">
+        <h2>大小变化文件</h2>
+        <p class="section-note">同一路径在两次 Top 大文件列表中的大小变化</p>
+      </div>
+      {% if comparison.size_changed_files %}
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>路径</th><th class="num">旧大小</th><th class="num">新大小</th></tr></thead>
+          <tbody>
+          {% for item in comparison.size_changed_files %}
+            <tr>
+              <td class="path-cell">{{ item.old.path }}</td>
+              <td class="num">{{ item.old.size_human }}</td>
+              <td class="num">{{ item.new.size_human }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state">没有大小变化文件。</div>
       {% endif %}
     </section>
   </main>
