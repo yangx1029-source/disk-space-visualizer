@@ -301,6 +301,6 @@ def test_snapshot_rejects_invalid_boolean_type(tmp_path: Path) -> None:
 
     with pytest.raises(
         ValueError,
-        match="duplicates.scanned must be a boolean",
+        match=r"duplicates\.scanned must be a boolean",
     ):
         snapshot_from_dict(data)

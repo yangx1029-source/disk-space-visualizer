@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.9.0] - 2026-08-12
+
+### Added
+
+- 稳定的 Dashboard `/api/v1` 契约、兼容旧路由、请求 ID 和机器可读错误码。
+- `/health`、`/ready`、`/api/v1/diagnostics` 运行状态接口与 Dashboard 系统诊断页。
+- 搜索结果和目录直接文件的服务端分页及浏览器翻页控件。
+- 每实例隔离的 JSON Lines 滚动日志，默认写入 `~/.diskvis/logs/dashboard.jsonl`。
+- API 安全、日志、分页、故障恢复、原子写入和浏览器诊断页测试。
+
+### Changed
+
+- Dashboard 普通结果接口不再返回完整文件清单，CSV/JSON 导出仍保留全量数据。
+- 重新扫描时继续展示最近一次成功结果；失败、取消或 Snapshot 写入失败不会清空结果。
+- JSON、Snapshot 与 HTML 报告改为同目录临时文件加 `os.replace()` 的原子写入。
+- Ruff 扩展启用命名、推导式、简化、Ruff 专项和代码质量规则。
+- 版本、Windows 文件属性、便携包名称和文档统一升级到 `0.9.0`。
+
+### Security
+
+- Dashboard 仅允许 IPv4 回环地址或 `localhost`，校验 `Host` 与 `Origin` 以防 DNS 重绑定。
+- 增加请求 URI、查询字段、分页、内容类型、传输编码、请求体大小和 Socket 超时限制。
+- 响应增加 API 版本、请求 ID、跨源隔离和权限策略安全头。
+
+## [0.8.0] - 2026-08-12
+
+### Added
+
+- `diskvis dashboard PATH` 本地 Web Dashboard，默认仅监听 `127.0.0.1`。
+- 后台扫描状态、当前路径、文件速度、历史估算剩余时间和浏览器安全取消。
+- 多层目录浏览、Treemap 下钻、面包屑、返回上级和当前目录占比。
+- 文件/路径搜索、大文件过滤以及 CSV、JSON、完全离线 HTML 导出。
+- Snapshot 趋势折线图、历史扫描记录、增长目录和进入大文件榜展示。
+- Dashboard API、任务管理、趋势数据与 1440px/390px Chromium 测试。
+
+### Changed
+
+- 版本统一升级到 `0.8.0`，Windows 便携包包含 Dashboard 模板。
+- Service 在重复检测阶段保留扫描文件、目录、字节和错误进度。
+- CLI 与 Dashboard 的高频进度 UI 更新进行节流，减少大型扫描的显示开销。
+- 报告展示树构建使用集合索引，避免节点去重的重复线性扫描。
+
+### Security
+
+- Dashboard 使用随机 nonce CSP、同源 API、JSON POST 和本机默认绑定。
+- CSV 导出对公式起始字符进行防护，动态文件路径只通过安全 DOM 文本写入。
+
 ## [0.7.0] - 2026-07-27
 
 ### Added

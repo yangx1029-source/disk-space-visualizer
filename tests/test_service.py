@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from diskvis.models import ScanProgress
 from diskvis.service import AnalysisOptions, analyze_directory
 
 
@@ -70,3 +71,19 @@ def test_duplicate_scan_state_with_duplicates(tmp_path: Path) -> None:
     assert result.data["duplicate_group_count"] == 1
     assert result.data["duplicate_potential_saved_size"] == 9
     assert result.data["duplicate_potential_saved_size_human"] == "9 B"
+
+
+def test_duplicate_progress_preserves_scan_totals(tmp_path: Path) -> None:
+    (tmp_path / "one.bin").write_bytes(b"duplicate")
+    (tmp_path / "two.bin").write_bytes(b"duplicate")
+    events: list[ScanProgress] = []
+
+    analyze_directory(
+        AnalysisOptions(root=tmp_path, include_duplicates=True),
+        on_progress=events.append,
+    )
+
+    duplicate_events = [event for event in events if event.phase == "duplicates"]
+    assert duplicate_events
+    assert all(event.files_scanned == 2 for event in duplicate_events)
+    assert all(event.dirs_scanned == 1 for event in duplicate_events)

@@ -3,12 +3,16 @@ from pathlib import Path
 
 project_root = Path(SPECPATH).resolve().parents[1]
 templates = project_root / "diskvis" / "templates"
+dashboard_templates = project_root / "diskvis" / "dashboard" / "templates"
 
 a = Analysis(
     [str(project_root / "diskvis" / "gui.py")],
     pathex=[str(project_root)],
     binaries=[],
-    datas=[(str(templates), "diskvis/templates")],
+    datas=[
+        (str(templates), "diskvis/templates"),
+        (str(dashboard_templates), "diskvis/dashboard/templates"),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

@@ -5,22 +5,25 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-2ea44f.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/yangx1029-source/disk-space-visualizer)](https://github.com/yangx1029-source/disk-space-visualizer/releases)
 
-> 跨平台磁盘空间可视化分析器 · `v0.7.0`
+> 跨平台磁盘空间可视化分析器 · `v0.9.0`
 
 Disk Space Visualizer 是一个使用 Python 开发的本地磁盘分析工具，命令行名称为
 `diskvis`。它可以递归扫描目录、定位大文件、统计文件类型和一级目录占用、检测重复
 文件，保存扫描快照、比较空间变化，并生成可直接打开的交互式 HTML 报告。项目同时
-提供 CLI 与 Windows GUI，默认不会删除任何文件。
+提供 CLI、Windows GUI 与仅绑定本机的 Web Dashboard，默认不会删除任何文件。
 
-![Disk Space Visualizer Liquid Glass report](docs/assets/report-screenshot.png)
+![Disk Space Visualizer Web Dashboard](docs/assets/dashboard-screenshot.png)
 
 ## 功能展示
 
-### Dashboard
+### Local Web Dashboard
 
-- 展示总大小、文件数、文件夹数、扫描耗时和重复文件检测状态。
-- 使用 iOS Liquid Glass 风格的半透明卡片、背景光晕和克制的微动画。
-- 支持深色/浅色主题、系统主题跟随和 `localStorage` 持久化。
+- `diskvis dashboard PATH` 启动仅监听 `127.0.0.1` 的本地分析服务并打开浏览器。
+- 展示磁盘容量、扫描状态、速度、预计剩余时间、文件/目录统计和最近扫描时间。
+- 提供多层目录浏览、Treemap 下钻、面包屑、路径搜索、重复文件和 CSV/JSON/HTML 导出。
+- 提供稳定的 `/api/v1`、分页查询、请求 ID、健康检查和本地运行诊断。
+- 读取 Snapshot v1/v2，展示空间趋势、历史扫描、增长目录和进入大文件榜的文件。
+- 使用 Liquid Glass 设计，支持深浅主题、390px 响应式布局和减少动态效果偏好。
 
 ### Treemap
 
@@ -55,6 +58,9 @@ Disk Space Visualizer 是一个使用 Python 开发的本地磁盘分析工具�
 - 使用 Jinja2 与 ECharts 生成交互式 HTML 报告。
 - CDN 失败时自动使用 SVG 图表；`--offline` 模式完全不请求外部资源。
 - 支持扫描快照保存、加载、目录差异和大文件历史对比。
+- 支持本地 Web Dashboard、后台扫描、浏览器取消、搜索和三种格式导出。
+- 扫描失败或取消时保留最近一次成功结果，Snapshot 写入失败不会丢失分析数据。
+- JSON、Snapshot 和 HTML 使用同目录临时文件原子替换，避免产生半写入文件。
 - CLI 与 GUI 通过独立 Service 层复用同一业务流程。
 - 使用 Pytest、Playwright、Ruff 和 GitHub Actions 完成质量验证。
 
@@ -68,6 +74,7 @@ Disk Space Visualizer 是一个使用 Python 开发的本地磁盘分析工具�
 | 路径与数据模型 | pathlib、dataclass |
 | HTML 报告 | Jinja2、ECharts 5.5.1、SVG fallback |
 | GUI | Tkinter |
+| Web Dashboard | Python 标准库 HTTP Server、Jinja2、原生 JavaScript/SVG |
 | 测试 | Pytest、Typer CliRunner、Playwright |
 | 质量与构建 | Ruff、Hatchling、PyInstaller、GitHub Actions |
 
@@ -76,7 +83,7 @@ Disk Space Visualizer 是一个使用 Python 开发的本地磁盘分析工具�
 ### 从源码安装
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/yangx1029-source/disk-space-visualizer.git
 cd disk-space-visualizer
 python -m pip install -e .
 ```
@@ -101,6 +108,30 @@ py -m diskvis.cli --help
 ```
 
 ## 使用方法
+
+### 启动本地 Web Dashboard
+
+```bash
+diskvis dashboard ./Downloads
+diskvis dashboard ./Downloads --include-duplicates
+diskvis dashboard ./Downloads --port 8765 --no-open-browser
+diskvis dashboard ./Downloads --snapshot-dir ~/.diskvis/snapshots
+diskvis dashboard ./Downloads --log-dir ~/.diskvis/logs
+```
+
+Dashboard 默认打开 `http://127.0.0.1:8765/`，不会监听外网地址。扫描在后台线程运行，
+浏览器可以查看当前路径、文件数、速度并安全取消。成功扫描默认保存 Snapshot；使用
+`--no-save-snapshot` 可以关闭。第一次扫描没有历史文件数时，预计剩余时间显示“计算中”；
+后续扫描会使用最近同路径 Snapshot 的文件数进行估算。
+
+Dashboard 的 CSV 和 JSON 导出包含当前文件清单，HTML 导出使用完全离线报告。CSV 路径
+会进行公式注入防护。服务退出时会取消仍在运行的扫描任务。
+
+Dashboard API 使用 `/api/v1` 稳定前缀，同时保留 v0.8 的 `/api/*` 兼容别名。服务只允许
+IPv4 回环地址或 `localhost`，并校验 `Host`、`Origin`、请求体大小和内容类型。结构化
+滚动日志默认写入 `~/.diskvis/logs/dashboard.jsonl`；“系统”页面可以查看版本、进程、
+日志路径和任务状态。API 契约与故障排查分别见 [docs/api.md](docs/api.md) 和
+[docs/operations.md](docs/operations.md)。
 
 ### 扫描目录
 
@@ -186,13 +217,20 @@ scripts\build_windows.bat
 
 - `dist\windows\DiskSpaceVisualizer.exe`：图形界面，双击即可使用。
 - `dist\windows\diskvis.exe`：命令行工具，适合脚本与高级参数。
-- `dist\DiskSpaceVisualizer-v0.7.0-Windows.zip`：可直接发送或解压使用的便携包。
+- `dist\DiskSpaceVisualizer-v0.9.0-Windows.zip`：可直接发送或解压使用的便携包。
 
 将整个 `dist\windows` 文件夹复制到另一台 Windows 电脑即可运行，无需安装 Python。
-GUI 标题、HTML 报告顶部和 Windows 文件属性都会显示当前 `v0.7.0`；
+GUI 标题、Dashboard、HTML 报告顶部和 Windows 文件属性都会显示当前 `v0.9.0`；
 也可以执行 `diskvis.exe --version` 核对版本。
 
-## HTML 报告截图
+## Dashboard 与 HTML 报告截图
+
+Dashboard 截图：
+
+```text
+docs/assets/dashboard-screenshot.png
+docs/assets/dashboard-mobile-screenshot.png
+```
 
 新版 Liquid Glass 报告截图位于：
 
@@ -217,6 +255,7 @@ flowchart TD
     Analyzer --> Service[Service]
     Service --> CLI[CLI]
     Service --> GUI[GUI]
+    Service --> Web[Local Web Dashboard]
     Service --> Report[HTML Report]
     Service --> Snapshot[Snapshot JSON]
     Snapshot --> Compare[Comparison]
@@ -231,6 +270,7 @@ Scanner
 Analyzer
    ↓
 Service
+   ├── CLI / GUI / Local Web Dashboard
    ├── HTML Report
    └── Snapshot → Comparison → Comparison HTML
 ```
@@ -240,6 +280,7 @@ Service
 - **Service**：统一编排扫描、分析、重复检测、建议和展示数据。
 - **Snapshot**：只消费 `AnalysisResult`，负责历史数据保存、校验和纯差异计算。
 - **CLI / GUI**：只负责输入、交互与结果展示，不互相依赖。
+- **Web Dashboard**：通过版本化本机 HTTP API 管理后台 Service 任务、分页索引、诊断和导出。
 - **HTML Report**：渲染当前扫描或历史对比结果，并保持安全转义。
 
 ## 项目结构
@@ -250,6 +291,13 @@ disk-space-visualizer/
 │   ├── __init__.py
 │   ├── cli.py
 │   ├── gui.py
+│   ├── dashboard/
+│   │   ├── api.py
+│   │   ├── manager.py
+│   │   ├── history.py
+│   │   ├── observability.py
+│   │   ├── server.py
+│   │   └── templates/index.html.j2
 │   ├── service.py
 │   ├── models.py
 │   ├── scanner.py
@@ -269,7 +317,10 @@ disk-space-visualizer/
 │   ├── test_report.py
 │   ├── test_snapshot.py
 │   ├── test_comparison_report.py
-│   └── test_report_browser.py
+│   ├── test_report_browser.py
+│   ├── test_dashboard.py
+│   ├── test_exporter.py
+│   └── test_dashboard_browser.py
 ├── examples/
 │   ├── sample-data.json
 │   ├── sample-report.html
@@ -284,7 +335,11 @@ disk-space-visualizer/
 ├── docs/
 │   ├── assets/report-screenshot.png
 │   ├── assets/comparison-screenshot.png
+│   ├── assets/dashboard-screenshot.png
+│   ├── assets/dashboard-mobile-screenshot.png
 │   ├── design.md
+│   ├── api.md
+│   ├── operations.md
 │   └── roadmap.md
 ├── .github/workflows/test.yml
 ├── CHANGELOG.md
@@ -331,12 +386,12 @@ python -m pip check
 真实浏览器报告测试：
 
 ```bash
-python -m pytest tests/test_report_browser.py -m browser
+python -m pytest -m browser
 ```
 
-测试覆盖核心算法、Service、Snapshot schema、目录与文件差异、CLI 端到端流程、
-XSS 防护、重复检测三态、Liquid Glass、主题持久化、Treemap，以及 390px/1440px
-响应式布局。
+测试覆盖核心算法、Service、Snapshot schema、目录与文件差异、CLI/Dashboard API
+端到端流程、XSS/CSP 防护、重复检测三态、主题持久化、Treemap，以及 390px/1440px
+响应式布局。v0.9 当前共有 85 项 Pytest，其中 8 项为 Chromium 浏览器测试。
 
 ## Roadmap
 
@@ -362,8 +417,23 @@ XSS 防护、重复检测三态、Liquid Glass、主题持久化、Treemap，以
 
 ### v0.8 · Web Dashboard
 
-- [ ] 独立本地 Web Dashboard。
-- [ ] 多次快照趋势和空间变化筛选。
+- [x] 仅绑定本机的 Web Dashboard 与 JSON API。
+- [x] 深层目录浏览、Treemap、搜索、取消和 CSV/JSON/HTML 导出。
+- [x] Snapshot 趋势、历史记录、增长目录和进入大文件榜展示。
+- [x] 390px/1440px Chromium 页面验证。
+
+### v0.9 · Enterprise Hardening
+
+- [x] 固化 `/api/v1`、稳定错误码、请求 ID、健康检查与运行诊断。
+- [x] Host/Origin 校验、请求限制、结构化滚动日志和原子文件写入。
+- [x] 搜索与目录文件分页，大型扫描结果不再通过普通 `/result` 全量传输。
+- [x] 重新扫描失败、取消或 Snapshot 保存失败时保留最近成功结果。
+
+### v1.0 · Stable Release
+
+- [ ] GUI 状态机自动化测试和正式性能基准。
+- [ ] 签名 Windows 发布、安装体验和发布后附件复核。
+- [ ] Firefox/WebKit 兼容验证、API 弃用策略和长期支持承诺。
 
 完整计划见 [docs/roadmap.md](docs/roadmap.md)。
 
@@ -373,6 +443,7 @@ XSS 防护、重复检测三态、Liquid Glass、主题持久化、Treemap，以
 
 - 基于 Python、Typer、Rich 开发本地磁盘扫描工具，实现目录递归扫描、大文件排行、文件类型统计、重复文件检测和忽略规则配置。
 - 使用 Jinja2 与 ECharts 生成 HTML 可视化报告，展示总览卡片、文件类型占比、一级文件夹占用和大文件排行榜。
+- 构建仅监听本机的 Liquid Glass Web Dashboard，支持后台扫描、目录下钻、文件搜索、历史趋势、任务取消以及 CSV/JSON/HTML 导出。
 - 基于版本化 JSON 快照实现磁盘空间历史对比，计算一级目录增长/减少及 Top 大文件新增/移出，并生成 Liquid Glass 对比报告。
 - 设计基于文件大小预分组与 SHA256 的重复文件检测流程，减少无效 hash 计算，提高检测效率。
 - 使用 Pytest 编写核心模块单元测试，并通过 GitHub Actions 实现自动化测试。

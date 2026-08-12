@@ -1,4 +1,4 @@
-Disk Space Visualizer v0.7.0
+Disk Space Visualizer v0.9.0
 ================================
 
 推荐用法
@@ -8,7 +8,7 @@ Disk Space Visualizer v0.7.0
 
 如何确认版本
 ------------
-GUI 窗口标题和 HTML 报告顶部都会显示 v0.7.0。
+GUI 窗口标题、Dashboard 和 HTML 报告顶部都会显示 v0.9.0。
 也可以在命令行执行：
 
     diskvis.exe --version
@@ -20,6 +20,7 @@ GUI 窗口标题和 HTML 报告顶部都会显示 v0.7.0。
     diskvis.exe duplicates PATH
     diskvis.exe snapshot PATH
     diskvis.exe compare OLD NEW --output comparison.html
+    diskvis.exe dashboard PATH
 
 注意
 ----

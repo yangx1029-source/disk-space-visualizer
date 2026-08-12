@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -27,7 +28,7 @@ from .snapshot import (
 )
 
 app = typer.Typer(
-    help="Scan disk usage, save snapshots, and generate visual HTML reports.",
+    help="Scan disk usage, explore a local dashboard, and generate visual reports.",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 console = Console()
@@ -77,8 +78,16 @@ def _analyze_with_progress(options: AnalysisOptions) -> AnalysisResult:
         console=console,
     ) as progress:
         task_id = progress.add_task("Scanning files...", total=None)
+        last_update_at = 0.0
+        last_phase = ""
 
         def on_progress(event: ScanProgress) -> None:
+            nonlocal last_phase, last_update_at
+            now = time.monotonic()
+            if event.phase == last_phase and now - last_update_at < 0.05:
+                return
+            last_phase = event.phase
+            last_update_at = now
             current = event.current_path.name[:48] if event.current_path else ""
             description = (
                 f"{event.phase}: {event.files_scanned} files, "
@@ -480,6 +489,85 @@ def snapshot_cmd(
         f"{summary['total_folders']} folders, "
         f"{format_size(summary['total_size'])}"
     )
+
+
+@app.command("dashboard")
+def dashboard_cmd(
+    path: Path = typer.Argument(..., help="Directory to analyze in the dashboard."),
+    port: int = typer.Option(
+        8765,
+        "--port",
+        min=0,
+        max=65535,
+        help="Local HTTP port. Use 0 to select an available port.",
+    ),
+    top: int = typer.Option(20, "--top", min=1, max=500, help="Analysis ranking size."),
+    min_size: str | None = typer.Option(
+        None,
+        "--min-size",
+        help="Only include files at least this large, for example 100MB.",
+    ),
+    include_duplicates: bool = typer.Option(
+        False,
+        "--include-duplicates",
+        help="Run cancellable duplicate-file detection after scanning.",
+    ),
+    snapshot_dir: Path = typer.Option(
+        Path.home() / ".diskvis" / "snapshots",
+        "--snapshot-dir",
+        help="Directory used for dashboard history snapshots.",
+    ),
+    log_dir: Path = typer.Option(
+        Path.home() / ".diskvis" / "logs",
+        "--log-dir",
+        help="Directory used for rotating dashboard JSON logs.",
+    ),
+    save_snapshot_enabled: bool = typer.Option(
+        True,
+        "--save-snapshot/--no-save-snapshot",
+        help="Save a snapshot after each successful dashboard scan.",
+    ),
+    open_browser: bool = typer.Option(
+        True,
+        "--open-browser/--no-open-browser",
+        help="Open the dashboard in the default browser.",
+    ),
+) -> None:
+    """Start the local Liquid Glass Web Dashboard."""
+    from .dashboard.server import DashboardConfig, DashboardServer
+
+    root = Path(path).expanduser()
+    if not root.exists():
+        console.print(f"[red]Error:[/red] path does not exist: {root}")
+        raise typer.Exit(code=1)
+    if not root.is_dir():
+        console.print(f"[red]Error:[/red] path is not a directory: {root}")
+        raise typer.Exit(code=1)
+    minimum = _parse_min_size(min_size)
+    try:
+        server = DashboardServer(
+            DashboardConfig(
+                root=root,
+                port=port,
+                top=top,
+                min_size=minimum,
+                include_duplicates=include_duplicates,
+                snapshot_dir=snapshot_dir,
+                log_dir=log_dir,
+                save_snapshot=save_snapshot_enabled,
+            )
+        )
+    except OSError as exc:
+        console.print(f"[red]Could not start dashboard:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    console.print(f"[green]Dashboard ready:[/green] {server.url}")
+    console.print("[dim]Press Ctrl+C to stop the local server.[/dim]")
+    try:
+        server.serve_forever(open_browser=open_browser)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Dashboard stopped.[/yellow]")
+    finally:
+        server.close()
 
 
 @app.command("compare")

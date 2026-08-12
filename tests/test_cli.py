@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 from typer.testing import CliRunner
 
 from diskvis.cli import app
+from diskvis.dashboard.server import DashboardConfig
 from diskvis.service import AnalysisOptions, analyze_directory
 
 runner = CliRunner()
@@ -15,7 +17,46 @@ def test_version_option() -> None:
     result = runner.invoke(app, ["--version"])
 
     assert result.exit_code == 0, result.output
-    assert result.output.strip() == "diskvis 0.7.0"
+    assert result.output.strip() == "diskvis 0.9.0"
+
+
+def test_dashboard_command_starts_local_server(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    calls: dict[str, object] = {}
+
+    class FakeServer:
+        url = "http://127.0.0.1:43210/"
+
+        def __init__(self, config: object) -> None:
+            calls["config"] = config
+
+        def serve_forever(self, open_browser: bool = True) -> None:
+            calls["open_browser"] = open_browser
+
+        def close(self) -> None:
+            calls["closed"] = True
+
+    monkeypatch.setattr("diskvis.dashboard.server.DashboardServer", FakeServer)
+    result = runner.invoke(
+        app,
+        [
+            "dashboard",
+            str(tmp_path),
+            "--port",
+            "0",
+            "--no-open-browser",
+            "--no-save-snapshot",
+            "--log-dir",
+            str(tmp_path / "logs"),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Dashboard ready:" in result.output
+    assert calls["open_browser"] is False
+    assert calls["closed"] is True
+    assert str(cast(DashboardConfig, calls["config"]).log_dir) == str(tmp_path / "logs")
 
 
 def test_scan_command_exports_json(tmp_path: Path) -> None:
@@ -258,7 +299,7 @@ def test_compare_command_prints_changes_and_generates_html(
 
 
 def test_all_commands_reject_unknown_options(tmp_path: Path) -> None:
-    for command in ("scan", "report", "duplicates", "snapshot"):
+    for command in ("scan", "report", "duplicates", "snapshot", "dashboard"):
         result = runner.invoke(app, [command, str(tmp_path), "--tpo", "5"])
 
         assert result.exit_code == 2, (command, result.output)
@@ -266,7 +307,7 @@ def test_all_commands_reject_unknown_options(tmp_path: Path) -> None:
 
 
 def test_unknown_option_value_is_not_treated_as_ignore_directory(tmp_path: Path) -> None:
-    for command in ("scan", "report", "duplicates", "snapshot"):
+    for command in ("scan", "report", "duplicates", "snapshot", "dashboard"):
         result = runner.invoke(app, [command, str(tmp_path), "--foobar", "skip"])
 
         assert result.exit_code == 2, (command, result.output)
