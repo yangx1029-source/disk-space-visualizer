@@ -1,6 +1,6 @@
 # Roadmap
 
-当前稳定版本：`v0.7.0`。
+当前版本：`v0.9.0`。
 
 ## v0.1.0 基础扫描
 
@@ -50,18 +50,28 @@
 ## v0.7.0 Deep Tree & Reliability
 
 - 增加深度目录树分析和多层级下钻。
-- 提供可下钻的本地 HTML Dashboard。
-- 管理快照历史和空间变化趋势。
-- 增加大型目录性能基准与取消扫描能力。
+- 增加结构化进度、取消、硬链接语义和文件稳定性保护。
+- 完成 Snapshot schema v2 与深层目录比较。
 
 ## v0.8.0 Web Dashboard
 
-- 深度目录树 Web Dashboard。
-- Snapshot 趋势图与多次历史对比。
+- 仅绑定本机的后台扫描服务和 Liquid Glass Dashboard。
+- 深度目录树、Treemap 下钻、搜索、取消和导出。
+- Snapshot 趋势图、历史记录、增长目录和最近大文件榜变化。
+- Dashboard API 与 390px/1440px Chromium 自动化测试。
+
+## v0.9.0 Enterprise Hardening
+
+- 固化 `/api/v1`，提供稳定错误码、请求 ID、健康检查和运行诊断。
+- 增加 Host/Origin 校验、请求限制和本机结构化滚动日志。
+- 搜索与目录文件分页，避免普通结果接口传输全量文件清单。
+- 原子持久化 JSON、Snapshot 与 HTML 报告。
+- 重新扫描失败、取消和 Snapshot 持久化失败时保留最近成功结果。
+- 扩展 Ruff、API、故障恢复与真实浏览器质量门槛。
 
 ## v1.0.0 Stable Desktop Release
 
-- 提供可下钻的目录浏览体验。
-- 管理历史扫描记录与快照。
-- 增加细粒度筛选、搜索和导出。
-- 提供签名的跨平台桌面发布流程。
+- 完成 GUI 状态机测试和大型目录性能基准。
+- 定义 API 弃用周期、Snapshot 数据迁移和错误恢复长期支持策略。
+- 提供签名 Windows 构建、安装说明和发布后附件校验。
+- 扩展 Firefox/WebKit 兼容验证并完成稳定性文档。

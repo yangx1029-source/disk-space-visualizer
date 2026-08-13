@@ -27,7 +27,7 @@ def test_real_analysis_snapshot_uses_v2_and_complete_tree(tmp_path: Path) -> Non
     loaded = load_snapshot(output)
 
     assert data["metadata"]["schema_version"] == 2
-    assert data["metadata"]["app_version"] == "0.7.0"
+    assert data["metadata"]["app_version"] == "0.9.0"
     assert data["metadata"]["tree_complete"] is True
     assert any(folder["relative_path"] == "Downloads/Images" for folder in data["folders"])
     assert loaded.metadata.schema_version == 2

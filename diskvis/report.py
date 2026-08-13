@@ -10,7 +10,7 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from . import __version__
-from .exporter import to_jsonable
+from .exporter import atomic_write_text, to_jsonable
 
 
 def _env() -> Environment:
@@ -56,7 +56,7 @@ def generate_html_report(
         tree_chart_json=_json(data.get("tree_stats", [])),
     )
     html = _clean_html(template.render(**context))
-    output_path.write_text(html, encoding="utf-8")
+    atomic_write_text(html, output_path)
 
 
 def generate_comparison_report(
@@ -84,4 +84,4 @@ def generate_comparison_report(
     html = _clean_html(
         template.render(comparison=context, app_version=__version__)
     )
-    output_path.write_text(html, encoding="utf-8")
+    atomic_write_text(html, output_path)

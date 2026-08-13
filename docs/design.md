@@ -58,7 +58,7 @@ CLI / GUI 参数
 3. dataclass 和 `Path` 被转换为 JSON 友好的结构。
 4. 模板渲染总览卡片、表格和图表数据。
 5. 在线模式优先使用固定版本 ECharts 5.5.1；`--offline` 模式不加载外部脚本，使用内置 SVG 降级渲染器。
-6. HTML 文件写入目标路径，生成结果可直接在浏览器打开。
+6. HTML 先写入目标目录中的临时文件，再通过原子替换发布，生成结果可直接在浏览器打开。
 
 CLI 使用 Typer/Click 的标准未知选项校验。`--ignore` 是可重复的单值选项；自定义目录会和默认忽略目录合并，不通过 `ctx.args` 接收未声明参数。
 
@@ -128,3 +128,49 @@ os.scandir -> FileInfo + DirectoryNode + ScanIssue
 Snapshot schema v2 保存平台、大小写敏感性、扫描参数、树完整性和错误摘要。加载
 v1/v0.6 文件时只在内存中迁移并标记为不完整，不覆盖原 JSON；比较时不再无条件
 `casefold`，会根据两份快照的路径语义产生明确警告。
+
+## v0.8 本地 Web Dashboard
+
+Dashboard 位于 `diskvis/dashboard/`，只依赖 Python 标准库 HTTP Server、Jinja2 和现有
+Service。Web 请求不会直接调用 Scanner：`DashboardManager` 创建 `AnalysisOptions`，
+后台线程调用 `analyze_directory()`，再把不可变结果建立为目录和文件查询索引。
+
+```text
+Browser -> Local HTTP API -> DashboardManager -> Service -> Scanner / Analyzer
+                         |                    -> Snapshot
+                         +-> CSV / JSON / HTML export
+```
+
+默认监听 `127.0.0.1`，不配置 CORS。POST 端点只接受有大小上限的 JSON；HTML 使用随机
+nonce Content Security Policy，动态路径通过 `textContent` 写入。后台状态由锁保护，
+同一时间只允许一个任务；取消通过 `CancellationToken` 传播，服务关闭时也会请求取消。
+
+扫描进度以 50ms 为最小写入间隔，浏览器以 450ms 轮询，降低大型目录中锁和 DOM 更新
+开销。目录索引在扫描完成后一次构建；搜索使用有限数量的 Top 结果，避免对匹配结果
+进行全量排序。预计剩余时间优先使用最近同根目录 Snapshot 的文件数，首次扫描无法可靠
+估算时明确显示“计算中”。
+
+## v0.9 企业级可靠性
+
+Dashboard 对外契约固定为 `/api/v1`，v0.8 的 `/api/*` 暂时作为兼容别名。每个错误响应
+同时提供 HTTP 状态、稳定 `code`、可读 `error` 和 `request_id`；响应头包含应用版本与
+API 版本。`/health` 用于确认进程存活，`/ready` 表示服务可接受请求，`/diagnostics`
+提供运行时、日志和分析状态，且不返回完整文件清单。
+
+```text
+Browser -> Host / Origin validation -> API v1 -> DashboardManager
+                                             |-> atomic result + indexes
+                                             |-> paginated tree / search
+                                             |-> export-only inventory
+                                             +-> JSONL rotating log
+```
+
+服务只允许 IPv4 回环地址或 `localhost`，并限制 URI 长度、查询字段数、分页范围、JSON
+内容类型、传输编码、请求体大小和 Socket 读取时间。随机 CSP nonce、同源策略、CSV
+公式防护与 Jinja2 自动转义继续生效。日志按 JSON Lines 写入，每条 HTTP 记录包含请求 ID、
+状态和耗时，单文件达到 2 MiB 后轮换并保留三个备份。
+
+扫描结果与目录索引先在线程私有变量中完整构建，再在同一把锁内一次替换。重新扫描期间
+旧结果仍可读取；新任务失败或取消时将其标记为 stale，但不会清空最近成功结果。
+Snapshot 持久化是非致命步骤，失败会出现在状态和诊断中。JSON、Snapshot 和 HTML 均
+使用同目录临时文件、`fsync` 与 `os.replace()`，避免进程中断留下半写入文件。

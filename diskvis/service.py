@@ -152,6 +152,7 @@ def _build_tree_nodes(
 
     total_size = max(1, root.recursive_size)
     output: list[dict[str, Any]] = [_node_payload(root)]
+    output_paths = {root.relative_path}
     pending: list[DirectoryNode] = [root]
     directory_budget = max_nodes if max_nodes is not None else 2**31
     limited = False
@@ -180,8 +181,9 @@ def _build_tree_nodes(
         if omitted:
             visible.append(_aggregate_node(parent, omitted))
         for item in visible:
-            if item["relative_path"] not in {entry["relative_path"] for entry in output}:
+            if item["relative_path"] not in output_paths:
                 output.append(item)
+                output_paths.add(item["relative_path"])
     return output, not limited
 
 
@@ -215,9 +217,7 @@ def _with_formatted_values(data: dict[str, Any]) -> dict[str, Any]:
     jsonable["duplicate_potential_saved_size_human"] = format_size(
         jsonable["duplicate_potential_saved_size"]
     )
-    jsonable["tree_limits"] = {
-        key: value for key, value in jsonable.get("tree_limits", {}).items()
-    }
+    jsonable["tree_limits"] = dict(jsonable.get("tree_limits", {}))
     return jsonable
 
 
@@ -329,11 +329,28 @@ def analyze_directory(
     scan_seconds = time.perf_counter() - started
     duplicate_groups: list[DuplicateGroup] = []
     if options.include_duplicates:
+        def duplicate_progress(event: ScanProgress) -> None:
+            if on_progress is None:
+                return
+            on_progress(
+                ScanProgress(
+                    phase=event.phase,
+                    current_path=event.current_path,
+                    files_scanned=scan_result.progress.files_scanned,
+                    dirs_scanned=scan_result.progress.dirs_scanned,
+                    bytes_scanned=scan_result.progress.bytes_scanned,
+                    errors=scan_result.progress.errors,
+                    duplicate_candidates=event.duplicate_candidates,
+                    hashes_completed=event.hashes_completed,
+                    hashes_total=event.hashes_total,
+                )
+            )
+
         duplicate_groups = find_duplicates(
             list(scan_result.files),
             min_size=options.min_size,
             cancellation=token,
-            on_progress=on_progress,
+            on_progress=duplicate_progress,
         )
     data = _build_data(options, scan_result, scan_seconds, duplicate_groups)
     return AnalysisResult(
@@ -349,9 +366,9 @@ def analyze_directory(
 
 
 __all__ = [
+    "AnalysisCancelled",
     "AnalysisOptions",
     "AnalysisResult",
-    "AnalysisCancelled",
     "CancellationToken",
     "analyze_directory",
 ]

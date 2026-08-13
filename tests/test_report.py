@@ -106,7 +106,7 @@ def test_report_has_theme_tokens_and_pinned_echarts(tmp_path: Path) -> None:
     online_html = online_output.read_text(encoding="utf-8")
     offline_html = offline_output.read_text(encoding="utf-8")
 
-    assert "v0.7.0" in online_html
+    assert "v0.9.0" in online_html
     assert "--glass-bg" in online_html
     assert "--glass-border" in online_html
     assert "--glass-shadow" in online_html

@@ -55,7 +55,7 @@ def test_comparison_report_contains_liquid_glass_timeline_and_changes(
     generate_comparison_report(_comparison_data(), output)
     html = output.read_text(encoding="utf-8")
 
-    assert "v0.7.0" in html
+    assert "v0.9.0" in html
     assert "--glass-bg" in html
     assert "--glass-blur" in html
     assert "backdrop-filter: blur(var(--glass-blur)) saturate(165%)" in html
