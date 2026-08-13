@@ -223,6 +223,19 @@ scripts\build_windows.bat
 GUI 标题、Dashboard、HTML 报告顶部和 Windows 文件属性都会显示当前 `v0.9.0`；
 也可以执行 `diskvis.exe --version` 核对版本。
 
+> **Windows 下载说明：** 当前 GitHub Release 中的 EXE 尚未进行 Authenticode 代码签名，
+> 因此 Windows SmartScreen 可能显示未知发布者警告。发布附件同时提供
+> `SHA256SUMS.txt`，请在运行前核对下载文件的 SHA256。
+
+PowerShell 核对示例：
+
+```powershell
+Get-FileHash .\DiskSpaceVisualizer-v0.9.0-Windows.zip -Algorithm SHA256
+```
+
+将输出值与同一 Release 中 `SHA256SUMS.txt` 对应文件的值比较。校验和可以验证下载完整性，
+但不能替代代码签名。
+
 ## Dashboard 与 HTML 报告截图
 
 Dashboard 截图：
